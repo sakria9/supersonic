@@ -1,0 +1,9 @@
+[submodule "libs/boost"]
+	path = libs/boost
+	url = https://github.com/boostorg/boost
+[submodule "libs/fmt"]
+	path = libs/fmt
+	url = https://github.com/fmtlib/fmt
+[submodule "libs/AudioFile"]
+	path = libs/AudioFile
+	url = https://github.com/adamstark/AudioFile.git
