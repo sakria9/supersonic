@@ -11,5 +11,18 @@ endif()
 
 project ("supersonic")
 
+# find Jack audio library
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(Jack REQUIRED)
+
+message("Jack include dir: ${Jack_INCLUDE_DIR}")
+message("Jack library: ${Jack_LIBRARY}")
+
+# include fmt
+add_subdirectory(libs/fmt)
+# include boost
+add_subdirectory(libs/boost EXCLUDE_FROM_ALL)
+
+
 # Include sub-projects.
 add_subdirectory ("supersonic")
