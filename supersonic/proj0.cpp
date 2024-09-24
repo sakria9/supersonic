@@ -108,9 +108,14 @@ int main(int argc, char** argv) {
     ("h,help", "Print usage")
     ("i,input", "Input sink", cxxopts::value<std::string>()->default_value("system:capture_1"))
     ("o,output", "Output sink", cxxopts::value<std::string>()->default_value("system:playback_1"))
-    ("t,task", "Task to run", cxxopts::value<int>()->default_value("1"));
+    ("t,task", "Task to run", cxxopts::value<int>(), "1: Objective 1, 2: Objective 2");
   // clang-format on
   auto result = options.parse(argc, argv);
+
+  if (result.count("help") || result.count("task") == 0) {
+    std::cout << options.help() << std::endl;
+    return 0;
+  }
 
   SuperSonic::SuperSonicOption opt;
   opt.input_sink = result["input"].as<std::string>();
