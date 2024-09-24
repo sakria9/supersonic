@@ -10,6 +10,6 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 target_include_directories(supersonic PRIVATE ${CMAKE_SOURCE_DIR}/libs/AudioFile)
-target_link_libraries(supersonic PRIVATE Jack::Jack fmt::fmt Boost::lockfree)
+target_link_libraries(supersonic PRIVATE Jack::Jack fmt::fmt Boost::lockfree spdlog::spdlog)
 
 # TODO: Add tests and install targets if needed.

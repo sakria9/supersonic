@@ -24,6 +24,10 @@ message("Jack library: ${Jack_LIBRARY}")
 add_subdirectory(libs/fmt)
 # include boost
 add_subdirectory(libs/boost EXCLUDE_FROM_ALL)
+# include spdlog
+# use external fmt
+set(SPDLOG_FMT_EXTERNAL ON)
+add_subdirectory(libs/spdlog)
 
 
 # Include sub-projects.
