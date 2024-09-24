@@ -3,13 +3,10 @@
 #
 
 # Add source to this project's executable.
-add_executable (supersonic "supersonic.cpp" )
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET supersonic PROPERTY CXX_STANDARD 20)
-endif()
+# set C++23 standard
+set(CMAKE_CXX_STANDARD 23)
 
-target_include_directories(supersonic PRIVATE ${CMAKE_SOURCE_DIR}/libs/AudioFile)
-target_link_libraries(supersonic PRIVATE Jack::Jack fmt::fmt Boost::lockfree spdlog::spdlog)
-
-# TODO: Add tests and install targets if needed.
+add_executable (proj0 "proj0.cpp" )
+target_include_directories(proj0 PRIVATE ${CMAKE_SOURCE_DIR}/libs/AudioFile)
+target_link_libraries(proj0 PRIVATE Jack::Jack fmt::fmt Boost::lockfree spdlog::spdlog cxxopts::cxxopts)

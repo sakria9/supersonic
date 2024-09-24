@@ -28,6 +28,8 @@ add_subdirectory(libs/boost EXCLUDE_FROM_ALL)
 # use external fmt
 set(SPDLOG_FMT_EXTERNAL ON)
 add_subdirectory(libs/spdlog)
+# include cxxopts
+add_subdirectory(libs/cxxopts)
 
 
 # Include sub-projects.
