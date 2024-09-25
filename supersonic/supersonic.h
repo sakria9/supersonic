@@ -19,6 +19,8 @@ class SuperSonic {
     std::string output_sink = "system:playback_1";
 
     size_t ringbuffer_size = kSampleRate * 5;
+
+    bool enable_raw_log = true;
   };
   SuperSonic(SuperSonicOption& opt)
       : opt_(opt),
@@ -59,14 +61,16 @@ class SuperSonic {
     // register a process callback
     jack_set_process_callback(client_, jack_process_callback_handler, this);
 
-    log_thread = std::jthread([this]() {
-      while (!stop_log_thread.test()) {
-        log_input_buffer.consume_one(
-            [&](float e) { log_input_buffer_data.push_back(e); });
-        log_output_buffer.consume_one(
-            [&](float e) { log_output_buffer_data.push_back(e); });
-      }
-    });
+    if (opt_.enable_raw_log) {
+      log_thread = std::jthread([this]() {
+        while (!stop_log_thread.test()) {
+          log_input_buffer.consume_one(
+              [&](float e) { log_input_buffer_data.push_back(e); });
+          log_output_buffer.consume_one(
+              [&](float e) { log_output_buffer_data.push_back(e); });
+        }
+      });
+    }
 
     // activate the client
     if (jack_activate(client_)) {
@@ -119,11 +123,13 @@ class SuperSonic {
         LOG_ERROR("jack_client_close failed, rc = {}", rc);
       }
 
-      stop_log_thread.test_and_set();
-      log_thread.join();
-      // write to wav file
-      write_wav("raw_input.wav", log_input_buffer_data, kSampleRate);
-      write_wav("raw_output.wav", log_output_buffer_data, kSampleRate);
+      if (opt_.enable_raw_log) {
+        stop_log_thread.test_and_set();
+        log_thread.join();
+        // write to wav file
+        write_wav("raw_input.wav", log_input_buffer_data, kSampleRate);
+        write_wav("raw_output.wav", log_output_buffer_data, kSampleRate);
+      }
     }
   }
 
@@ -168,8 +174,10 @@ class SuperSonic {
       warned_input_buffer_ = false;
     }
 
-    if (log_input_buffer.push(input, nframes) != nframes) {
-      LOG_ERROR("log_input_buffer.push failed.");
+    if (opt_.enable_raw_log) {
+      if (log_input_buffer.push(input, nframes) != nframes) {
+        LOG_ERROR("log_input_buffer.push failed.");
+      }
     }
 
     // write to output port
@@ -190,8 +198,10 @@ class SuperSonic {
       warned_output_buffer_ = false;
     }
 
-    if (log_output_buffer.push(output, nframes) != nframes) {
-      LOG_ERROR("log_output_buffer.push failed.");
+    if (opt_.enable_raw_log) {
+      if (log_output_buffer.push(output, nframes) != nframes) {
+        LOG_ERROR("log_output_buffer.push failed.");
+      }
     }
 
     return 0;
