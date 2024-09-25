@@ -2,11 +2,16 @@
 # project specific logic here.
 #
 
-# Add source to this project's executable.
-
 # set C++23 standard
 set(CMAKE_CXX_STANDARD 23)
 
-add_executable (proj0 "proj0.cpp" )
-target_include_directories(proj0 PRIVATE ${CMAKE_SOURCE_DIR}/libs/AudioFile)
-target_link_libraries(proj0 PRIVATE Jack::Jack fmt::fmt Boost::lockfree spdlog::spdlog cxxopts::cxxopts)
+# Function to add an executable with common settings
+function(add_custom_executable target_name source_file)
+    add_executable(${target_name} ${source_file})
+    target_include_directories(${target_name} PRIVATE ${CMAKE_SOURCE_DIR}/libs/AudioFile)
+    target_link_libraries(${target_name} PRIVATE Jack::Jack fmt::fmt Boost::lockfree spdlog::spdlog cxxopts::cxxopts)
+endfunction()
+
+# Add executables using the custom function
+add_custom_executable(proj0 proj0.cpp)
+add_custom_executable(sinwave sinwave.cpp)
