@@ -65,9 +65,9 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  std::cout << "Press any key to quit." << std::endl;
-  std::cin.get();
-  stop_flag.test_and_set();
+  // std::cout << "Press any key to quit." << std::endl;
+  // std::cin.get();
+  // stop_flag.test_and_set();
 
   work_thread.join();
 
