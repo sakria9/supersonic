@@ -21,7 +21,7 @@ struct Objective1 {
       if (elapsed_time.count() >= seconds) {
         break;
       }
-      supersonic->input_buffer.consume_all(
+      supersonic->rx_buffer.consume_all(
           [&](float e) { record_stream.push_back(e); });
     }
     LOG_INFO("Recorded {} samples", record_stream.size());
@@ -31,8 +31,8 @@ struct Objective1 {
       if (stop_flag.test()) {
         break;
       }
-      if (supersonic->output_buffer.write_available()) {
-        supersonic->output_buffer.push(record_stream[i++]);
+      if (supersonic->tx_buffer.write_available()) {
+        supersonic->tx_buffer.push(record_stream[i++]);
       }
     }
     LOG_INFO("Replay finished");
@@ -75,13 +75,13 @@ struct Objective2 {
       }
       // play the predefined sound wave
       for (int i = 0; i < nframes; i++) {
-        if (supersonic->output_buffer.write_available()) {
-          supersonic->output_buffer.push(sample[play_index++ % sample.size()]);
+        if (supersonic->tx_buffer.write_available()) {
+          supersonic->tx_buffer.push(sample[play_index++ % sample.size()]);
         }
       }
       // record the playing sound
       for (int i = 0; i < nframes; i++) {
-        supersonic->input_buffer.consume_one(
+        supersonic->rx_buffer.consume_one(
             [&](float e) { record_stream.push_back(e); });
       }
     }
@@ -93,8 +93,8 @@ struct Objective2 {
       if (stop_flag.test()) {
         break;
       }
-      if (supersonic->output_buffer.write_available()) {
-        supersonic->output_buffer.push(record_stream[i++]);
+      if (supersonic->tx_buffer.write_available()) {
+        supersonic->tx_buffer.push(record_stream[i++]);
       }
     }
     LOG_INFO("Replay finished");
@@ -118,8 +118,8 @@ int main(int argc, char** argv) {
   }
 
   SuperSonic::SuperSonicOption opt;
-  opt.input_sink = result["input"].as<std::string>();
-  opt.output_sink = result["output"].as<std::string>();
+  opt.input_port = result["input"].as<std::string>();
+  opt.output_port = result["output"].as<std::string>();
   opt.ringbuffer_size = 128 * 10;
 
   auto supersonic = std::make_unique<SuperSonic>(opt);

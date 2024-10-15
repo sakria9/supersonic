@@ -5,9 +5,7 @@
 // Play sine wave
 struct Objective1 {
   void run(SuperSonic* supersonic, std::atomic_flag& stop_flag) {
-    // kSampleRate = 48000
-
-    constexpr float freq = 440.0;
+    constexpr float freq = 1000.0;
     constexpr float amplitude = 0.5;
     constexpr float phase = 0.0;
     auto sine_wave = [&freq, &amplitude, &phase](int i) {
@@ -22,8 +20,8 @@ struct Objective1 {
       }
       int nframes = 128;
       for (int i = 0; i < nframes; i++) {
-        if (supersonic->output_buffer.write_available()) {
-          supersonic->output_buffer.push(sine_wave(play_index++));
+        if (supersonic->tx_buffer.write_available()) {
+          supersonic->tx_buffer.push(sine_wave(play_index++));
         }
       }
     }
@@ -46,8 +44,8 @@ int main(int argc, char** argv) {
   }
 
   SuperSonic::SuperSonicOption opt;
-  opt.input_sink = result["input"].as<std::string>();
-  opt.output_sink = result["output"].as<std::string>();
+  opt.input_port = result["input"].as<std::string>();
+  opt.output_port = result["output"].as<std::string>();
   opt.ringbuffer_size = 128 * 10;
   // opt.enable_raw_log = false;
 

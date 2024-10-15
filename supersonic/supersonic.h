@@ -15,8 +15,8 @@ class SuperSonic {
   struct SuperSonicOption {
     std::string client_name = "supersonic";
 
-    std::string input_sink = "system:capture_1";
-    std::string output_sink = "system:playback_1";
+    std::string input_port = "system:capture_1";
+    std::string output_port = "system:playback_1";
 
     size_t ringbuffer_size = kSampleRate * 5;
 
@@ -24,8 +24,8 @@ class SuperSonic {
   };
   SuperSonic(SuperSonicOption& opt)
       : opt_(opt),
-        input_buffer(opt.ringbuffer_size),
-        output_buffer(opt.ringbuffer_size) {}
+        rx_buffer(opt.ringbuffer_size),
+        tx_buffer(opt.ringbuffer_size) {}
 
   int run() {
     jack_status_t status;
@@ -64,10 +64,10 @@ class SuperSonic {
     if (opt_.enable_raw_log) {
       log_thread = std::jthread([this]() {
         while (!stop_log_thread.test()) {
-          log_input_buffer.consume_one(
-              [&](float e) { log_input_buffer_data.push_back(e); });
-          log_output_buffer.consume_one(
-              [&](float e) { log_output_buffer_data.push_back(e); });
+          log_rx_buffer.consume_one(
+              [&](float e) { log_rx_buffer_data.push_back(e); });
+          log_tx_buffer.consume_one(
+              [&](float e) { log_tx_buffer_data.push_back(e); });
         }
       });
     }
@@ -79,14 +79,14 @@ class SuperSonic {
     }
 
     // bind input_port to system:capture_1
-    if (jack_connect(client_, opt_.input_sink.c_str(),
+    if (jack_connect(client_, opt_.input_port.c_str(),
                      jack_port_name(input_port_))) {
       LOG_ERROR("jack_connect failed.");
       return 1;
     }
     // bind output_port to system:playback_1
     if (jack_connect(client_, jack_port_name(output_port_),
-                     opt_.output_sink.c_str())) {
+                     opt_.output_port.c_str())) {
       LOG_ERROR("jack_connect failed.");
       return 1;
     }
@@ -127,8 +127,8 @@ class SuperSonic {
         stop_log_thread.test_and_set();
         log_thread.join();
         // write to wav file
-        write_wav("raw_input.wav", log_input_buffer_data, kSampleRate);
-        write_wav("raw_output.wav", log_output_buffer_data, kSampleRate);
+        write_wav("raw_input.wav", log_rx_buffer_data, kSampleRate);
+        write_wav("raw_output.wav", log_tx_buffer_data, kSampleRate);
       }
     }
   }
@@ -139,18 +139,18 @@ class SuperSonic {
   jack_client_t* client_ = nullptr;
   jack_port_t *input_port_ = nullptr, *output_port_ = nullptr;
 
-  RingBuffer log_input_buffer{kSampleRate * 10};
-  RingBuffer log_output_buffer{kSampleRate * 10};
-  std::vector<float> log_input_buffer_data;
-  std::vector<float> log_output_buffer_data;
+  RingBuffer log_rx_buffer{kSampleRate * 10};
+  RingBuffer log_tx_buffer{kSampleRate * 10};
+  std::vector<float> log_rx_buffer_data;
+  std::vector<float> log_tx_buffer_data;
   std::jthread log_thread;
   std::atomic_flag stop_log_thread = ATOMIC_FLAG_INIT;
 
  public:
-  RingBuffer input_buffer, output_buffer;
+  RingBuffer rx_buffer, tx_buffer;
 
  private:
-  bool warned_input_buffer_ = false, warned_output_buffer_ = false;
+  bool warned_rx_buffer_ = false, warned_tx_buffer_ = false;
 
   // this is called in jack thread
   static int jack_process_callback_handler(jack_nframes_t nframes, void* arg) {
@@ -159,48 +159,48 @@ class SuperSonic {
   // this is called in jack thread
   int process_callback(jack_nframes_t nframes) {
     // read from input port
-    auto* input = (jack_default_audio_sample_t*)jack_port_get_buffer(
-        input_port_, nframes);
-    auto pushed = input_buffer.push(input, nframes);
+    auto rx = (jack_default_audio_sample_t*)jack_port_get_buffer(input_port_,
+                                                                 nframes);
+    auto pushed = rx_buffer.push(rx, nframes);
     if (pushed != nframes) {
-      if (!warned_input_buffer_) {
+      if (!warned_rx_buffer_) {
         LOG_WARN(
-            "Push input_buffer failed. Expected to push {} frames, but pushed "
+            "Push rx_buffer failed. Expected to push {} frames, but pushed "
             "{} frames.",
             nframes, pushed);
-        warned_input_buffer_ = true;
+        warned_rx_buffer_ = true;
       }
     } else {
-      warned_input_buffer_ = false;
+      warned_rx_buffer_ = false;
     }
 
     if (opt_.enable_raw_log) {
-      if (log_input_buffer.push(input, nframes) != nframes) {
-        LOG_ERROR("log_input_buffer.push failed.");
+      if (log_rx_buffer.push(rx, nframes) != nframes) {
+        LOG_ERROR("log_rx_buffer.push failed.");
       }
     }
 
     // write to output port
-    auto output = (jack_default_audio_sample_t*)jack_port_get_buffer(
-        output_port_, nframes);
-    auto wrote = output_buffer.pop(output, nframes);
+    auto tx = (jack_default_audio_sample_t*)jack_port_get_buffer(output_port_,
+                                                                 nframes);
+    auto wrote = tx_buffer.pop(tx, nframes);
     if (wrote != nframes) {
       // fill 0 if not enough data
-      std::fill(output + wrote, output + nframes, .0f);
-      if (!warned_output_buffer_) {
+      std::fill(tx + wrote, tx + nframes, .0f);
+      if (!warned_tx_buffer_) {
         LOG_WARN(
-            "Write output failed. Expected to write {} frames, but wrote {} "
+            "Write TX failed. Expected to write {} frames, but wrote {} "
             "frames.",
             nframes, wrote);
-        warned_output_buffer_ = true;
+        warned_tx_buffer_ = true;
       }
     } else {
-      warned_output_buffer_ = false;
+      warned_tx_buffer_ = false;
     }
 
     if (opt_.enable_raw_log) {
-      if (log_output_buffer.push(output, nframes) != nframes) {
-        LOG_ERROR("log_output_buffer.push failed.");
+      if (log_tx_buffer.push(tx, nframes) != nframes) {
+        LOG_ERROR("log_tx_buffer.push failed.");
       }
     }
 
