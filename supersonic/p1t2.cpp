@@ -14,17 +14,20 @@ struct Objective1 {
              amplitude * std::sin(2 * M_PI * 10000 * t);
     };
 
+    const auto cycle = 48;
+    std::vector<float> wave(cycle);
+    for (int i = 0; i < cycle; i++) {
+      wave[i] = sine_wave(i);
+    }
+
     // Play the sine wave
-    size_t play_index = 0;
     while (1) {
       if (stop_flag.test()) {
         break;
       }
-      int nframes = 128;
-      for (int i = 0; i < nframes; i++) {
+      for (int i = 0; i < 200; i++) {
         if (supersonic->tx_buffer.write_available()) {
-          supersonic->tx_buffer.push(sine_wave(play_index++));
-          play_index %= 48;
+          supersonic->tx_buffer.push({wave});
         }
       }
     }

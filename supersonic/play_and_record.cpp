@@ -16,13 +16,9 @@ struct Objective1 {
     std::vector<float> sample = samples.value()[0];
 
     LOG_INFO("start playing the predefined sound wave");
-    for (size_t i = 0; i < sample.size();) {
-      if (stop_flag.test()) {
-        break;
-      }
-      if (supersonic->tx_buffer.write_available()) {
-        supersonic->tx_buffer.push(sample[i++]);
-      }
+    std::atomic_flag token = ATOMIC_FLAG_INIT;
+    supersonic->tx_buffer.push({sample, &token});
+    while (!token.test() && !stop_flag.test()) {
     }
     LOG_INFO("Play finished");
   }

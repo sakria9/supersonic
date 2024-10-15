@@ -14,6 +14,5 @@ endfunction()
 
 # Add executables using the custom function
 add_custom_executable(proj0 proj0.cpp)
-add_custom_executable(sinwave sinwave.cpp)
 add_custom_executable(play_and_record play_and_record.cpp)
 add_custom_executable(p1t2 p1t2.cpp)

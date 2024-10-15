@@ -6,7 +6,25 @@
 #include "log.h"
 #include "utils.h"
 
+struct TxTask {
+  std::span<float> data;
+  size_t played_index;
+  std::atomic_flag* completed;
+  TxTask(std::span<float> data,
+         size_t played_index,
+         std::atomic_flag* completed)
+      : data(data), played_index(played_index), completed(completed) {}
+  TxTask(std::span<float> data, std::atomic_flag* completed)
+      : data(data), played_index(0), completed(completed) {}
+  TxTask(std::span<float> data, size_t played_index)
+      : data(data), played_index(played_index), completed(nullptr) {}
+  TxTask(std::span<float> data)
+      : data(data), played_index(0), completed(nullptr) {}
+};
+
 using RingBuffer = boost::lockfree::spsc_queue<float>;
+using TxRingBuffer = boost::lockfree::spsc_queue<TxTask>;
+using RxRingBuffer = RingBuffer;
 
 constexpr int kSampleRate = 48000;
 
@@ -147,7 +165,8 @@ class SuperSonic {
   std::atomic_flag stop_log_thread = ATOMIC_FLAG_INIT;
 
  public:
-  RingBuffer rx_buffer, tx_buffer;
+  RxRingBuffer rx_buffer;
+  TxRingBuffer tx_buffer;
 
  private:
   bool warned_rx_buffer_ = false, warned_tx_buffer_ = false;
@@ -183,7 +202,24 @@ class SuperSonic {
     // write to output port
     auto tx = (jack_default_audio_sample_t*)jack_port_get_buffer(output_port_,
                                                                  nframes);
-    auto wrote = tx_buffer.pop(tx, nframes);
+
+    size_t wrote = 0;
+    while (wrote < nframes && tx_buffer.read_available()) {
+      auto& task = tx_buffer.front();
+      auto& data = task.data;
+      auto& played_index = task.played_index;
+      auto to_play = std::min(nframes - wrote, data.size() - played_index);
+      std::copy(data.begin() + played_index,
+                data.begin() + played_index + to_play, tx + wrote);
+      wrote += to_play;
+      played_index += to_play;
+      if (played_index == data.size()) {
+        tx_buffer.pop();
+        if (task.completed != nullptr) {
+          task.completed->test_and_set();
+        }
+      }
+    }
     if (wrote != nframes) {
       // fill 0 if not enough data
       std::fill(tx + wrote, tx + nframes, .0f);

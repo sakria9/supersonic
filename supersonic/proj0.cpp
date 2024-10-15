@@ -27,13 +27,9 @@ struct Objective1 {
     LOG_INFO("Recorded {} samples", record_stream.size());
 
     // Replay the recorded sound
-    for (size_t i = 0; i < record_stream.size();) {
-      if (stop_flag.test()) {
-        break;
-      }
-      if (supersonic->tx_buffer.write_available()) {
-        supersonic->tx_buffer.push(record_stream[i++]);
-      }
+    std::atomic_flag token;
+    supersonic->tx_buffer.push({record_stream, &token});
+    while (!token.test() && !stop_flag.test()) {
     }
     LOG_INFO("Replay finished");
   }
@@ -64,20 +60,14 @@ struct Objective2 {
     size_t play_index = 0;
     std::vector<float> record_stream;
     LOG_INFO("start playing the predefined sound wave");
+
+    auto sample_count = std::min((size_t)kSampleRate * seconds, sample.size());
+    std::span<float> sample_span(sample.data(), sample_count);
+    std::atomic_flag token;
+    supersonic->tx_buffer.push({sample_span, &token});
     while (1) {
-      if (stop_flag.test()) {
+      if (token.test() || stop_flag.test()) {
         break;
-      }
-      auto current_time = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<double> elapsed_time = current_time - start_time;
-      if (elapsed_time.count() >= seconds) {
-        break;
-      }
-      // play the predefined sound wave
-      for (int i = 0; i < nframes; i++) {
-        if (supersonic->tx_buffer.write_available()) {
-          supersonic->tx_buffer.push(sample[play_index++ % sample.size()]);
-        }
       }
       // record the playing sound
       for (int i = 0; i < nframes; i++) {
@@ -89,13 +79,9 @@ struct Objective2 {
 
     // Last 10 seconds: Replay the recorded sound
     LOG_INFO("Replaying the recorded sound");
-    for (size_t i = 0; i < record_stream.size();) {
-      if (stop_flag.test()) {
-        break;
-      }
-      if (supersonic->tx_buffer.write_available()) {
-        supersonic->tx_buffer.push(record_stream[i++]);
-      }
+    token.clear();
+    supersonic->tx_buffer.push({record_stream, &token});
+    while (!token.test() && !stop_flag.test()) {
     }
     LOG_INFO("Replay finished");
   }
