@@ -6,19 +6,21 @@
 #include "log.h"
 #include "utils.h"
 
+namespace SuperSonic {
+
 struct TxTask {
-  std::span<float> data;
+  std::span<const float> data;
   size_t played_index;
   std::atomic_flag* completed;
-  TxTask(std::span<float> data,
+  TxTask(std::span<const float> data,
          size_t played_index,
          std::atomic_flag* completed)
       : data(data), played_index(played_index), completed(completed) {}
-  TxTask(std::span<float> data, std::atomic_flag* completed)
+  TxTask(std::span<const float> data, std::atomic_flag* completed)
       : data(data), played_index(0), completed(completed) {}
-  TxTask(std::span<float> data, size_t played_index)
+  TxTask(std::span<const float> data, size_t played_index)
       : data(data), played_index(played_index), completed(nullptr) {}
-  TxTask(std::span<float> data)
+  TxTask(std::span<const float> data)
       : data(data), played_index(0), completed(nullptr) {}
 };
 
@@ -28,9 +30,9 @@ using RxRingBuffer = RingBuffer;
 
 constexpr int kSampleRate = 48000;
 
-class SuperSonic {
+class Saudio {
  public:
-  struct SuperSonicOption {
+  struct SaudioOption {
     std::string client_name = "supersonic";
 
     std::string input_port = "system:capture_1";
@@ -40,7 +42,7 @@ class SuperSonic {
 
     bool enable_raw_log = true;
   };
-  SuperSonic(SuperSonicOption& opt)
+  Saudio(SaudioOption& opt)
       : opt_(opt),
         rx_buffer(opt.ringbuffer_size),
         tx_buffer(opt.ringbuffer_size) {}
@@ -112,7 +114,7 @@ class SuperSonic {
     return 0;
   }
 
-  ~SuperSonic() {
+  ~Saudio() {
     if (client_) {
       int rc;
       // deactivate the client
@@ -152,7 +154,7 @@ class SuperSonic {
   }
 
  private:
-  SuperSonicOption opt_;
+  SaudioOption opt_;
 
   jack_client_t* client_ = nullptr;
   jack_port_t *input_port_ = nullptr, *output_port_ = nullptr;
@@ -169,28 +171,28 @@ class SuperSonic {
   TxRingBuffer tx_buffer;
 
  private:
-  bool warned_rx_buffer_ = false, warned_tx_buffer_ = false;
+  bool warned_tx_buffer_ = false;
 
   // this is called in jack thread
   static int jack_process_callback_handler(jack_nframes_t nframes, void* arg) {
-    return reinterpret_cast<SuperSonic*>(arg)->process_callback(nframes);
+    return reinterpret_cast<Saudio*>(arg)->process_callback(nframes);
   }
   // this is called in jack thread
   int process_callback(jack_nframes_t nframes) {
     // read from input port
     auto rx = (jack_default_audio_sample_t*)jack_port_get_buffer(input_port_,
                                                                  nframes);
+    if (rx_buffer.write_available() < nframes) {
+      auto to_drop = nframes - rx_buffer.write_available();
+      LOG_WARN("Rx buffer is full. Going to reset RX buffer.");
+      rx_buffer.consume_all([](float e) {});
+    }
     auto pushed = rx_buffer.push(rx, nframes);
     if (pushed != nframes) {
-      if (!warned_rx_buffer_) {
-        LOG_WARN(
-            "Push rx_buffer failed. Expected to push {} frames, but pushed "
-            "{} frames.",
-            nframes, pushed);
-        warned_rx_buffer_ = true;
-      }
-    } else {
-      warned_rx_buffer_ = false;
+      LOG_ERROR(
+          "rx_buffer.push failed. Expected to push {}, but pushed {}."
+          "This should not happen.",
+          nframes, pushed);
     }
 
     if (opt_.enable_raw_log) {
@@ -243,3 +245,5 @@ class SuperSonic {
     return 0;
   }
 };
+
+}  // namespace SuperSonic

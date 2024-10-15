@@ -2,14 +2,16 @@
 
 #include "supersonic.h"
 
+using SuperSonic::Saudio;
+
 // Play sine wave
 struct Objective1 {
-  void run(SuperSonic* supersonic, std::atomic_flag& stop_flag) {
+  void run(Saudio* supersonic, std::atomic_flag& stop_flag) {
     constexpr float freq = 1000.0;
     constexpr float amplitude = 0.5;
     constexpr float phase = 0.0;
     auto sine_wave = [&freq, &amplitude, &phase](int i) {
-      float t = (float)i / kSampleRate;
+      float t = (float)i / SuperSonic::kSampleRate;
       return amplitude * std::sin(2 * M_PI * 1000 * t) +
              amplitude * std::sin(2 * M_PI * 10000 * t);
     };
@@ -49,13 +51,13 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  SuperSonic::SuperSonicOption opt;
+  Saudio::SaudioOption opt;
   opt.input_port = result["input"].as<std::string>();
   opt.output_port = result["output"].as<std::string>();
   opt.ringbuffer_size = 128 * 50;
   opt.enable_raw_log = true;
 
-  auto supersonic = std::make_unique<SuperSonic>(opt);
+  auto supersonic = std::make_unique<Saudio>(opt);
 
   std::atomic_flag stop_flag = ATOMIC_FLAG_INIT;
   std::jthread work_thread;

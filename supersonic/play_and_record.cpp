@@ -3,9 +3,11 @@
 #include "supersonic.h"
 #include "utils.h"
 
+using SuperSonic::Saudio;
+
 struct Objective1 {
   void run(std::string wav_file,
-           SuperSonic* supersonic,
+           Saudio* supersonic,
            std::atomic_flag& stop_flag) {
     // Load the predefined sound wave to vector
     auto samples = read_wav<float>(wav_file);
@@ -40,13 +42,13 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  SuperSonic::SuperSonicOption opt;
+  Saudio::SaudioOption opt;
   opt.input_port = result["input"].as<std::string>();
   opt.output_port = result["output"].as<std::string>();
   opt.ringbuffer_size = 128 * 100;
   opt.enable_raw_log = true;
 
-  auto supersonic = std::make_unique<SuperSonic>(opt);
+  auto supersonic = std::make_unique<Saudio>(opt);
 
   std::atomic_flag stop_flag = ATOMIC_FLAG_INIT;
   std::jthread work_thread;

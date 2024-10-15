@@ -3,10 +3,12 @@
 #include "supersonic.h"
 #include "utils.h"
 
+using SuperSonic::Saudio;
+
 // Objective 1 (1.5 points): NODE1 should record the TA’s voice for 10 seconds
 // and accurately replay the recorded sound.
 struct Objective1 {
-  void run(SuperSonic* supersonic, std::atomic_flag& stop_flag) {
+  void run(Saudio* supersonic, std::atomic_flag& stop_flag) {
     constexpr int seconds = 10;
 
     // Record the TA's voice for 10 seconds
@@ -40,7 +42,7 @@ struct Objective1 {
 // recording. After 10 seconds, the playback and recording should stop. Then,
 // NODE1 must accurately replay the recorded sound.
 struct Objective2 {
-  void run(SuperSonic* supersonic, std::atomic_flag& stop_flag) {
+  void run(Saudio* supersonic, std::atomic_flag& stop_flag) {
     // Load the predefined sound wave to vector
     const std::string filePath = "test-audio.wav";
     auto samples = read_wav<float>(filePath);
@@ -61,7 +63,8 @@ struct Objective2 {
     std::vector<float> record_stream;
     LOG_INFO("start playing the predefined sound wave");
 
-    auto sample_count = std::min((size_t)kSampleRate * seconds, sample.size());
+    auto sample_count =
+        std::min((size_t)SuperSonic::kSampleRate * seconds, sample.size());
     std::span<float> sample_span(sample.data(), sample_count);
     std::atomic_flag token;
     supersonic->tx_buffer.push({sample_span, &token});
@@ -103,12 +106,12 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  SuperSonic::SuperSonicOption opt;
+  Saudio::SaudioOption opt;
   opt.input_port = result["input"].as<std::string>();
   opt.output_port = result["output"].as<std::string>();
   opt.ringbuffer_size = 128 * 10;
 
-  auto supersonic = std::make_unique<SuperSonic>(opt);
+  auto supersonic = std::make_unique<Saudio>(opt);
 
   std::atomic_flag stop_flag = ATOMIC_FLAG_INIT;
   std::jthread work_thread;
