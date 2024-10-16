@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE SuperSonicTest
 #include <boost/test/included/unit_test.hpp>  //single-header
 
+#include "hamming.h"
 #include "utils.h"
 
 BOOST_AUTO_TEST_CASE(np_test) {
@@ -68,5 +69,36 @@ BOOST_AUTO_TEST_CASE(np_test) {
     // argmax
     Vec a{1, 2, 3};
     BOOST_CHECK_EQUAL(argmax(a), 2);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(HammingEncodeDecode) {
+  // 7, 4 Hamming code
+  // basic test
+  using namespace SuperSonic::Hamming;
+  using SuperSonic::Bits;
+
+  {
+    Bits bits{1, 0, 1, 1};
+    auto encoded = hamming_encode(bits);
+    auto decoded = hamming_decode(encoded);
+    BOOST_CHECK_EQUAL(decoded.size(), 4);
+    BOOST_CHECK_EQUAL(decoded[0], 1);
+    BOOST_CHECK_EQUAL(decoded[1], 0);
+    BOOST_CHECK_EQUAL(decoded[2], 1);
+    BOOST_CHECK_EQUAL(decoded[3], 1);
+  }
+  {
+    Bits bits{1, 0, 1, 1};
+    for (int i = 0; i < 7; i++) {
+      auto encoded = hamming_encode(bits);
+      encoded[i] = 1 - encoded[i];
+      auto decoded = hamming_decode(encoded);
+      BOOST_CHECK_EQUAL(decoded.size(), 4);
+      BOOST_CHECK_EQUAL(decoded[0], 1);
+      BOOST_CHECK_EQUAL(decoded[1], 0);
+      BOOST_CHECK_EQUAL(decoded[2], 1);
+      BOOST_CHECK_EQUAL(decoded[3], 1);
+    }
   }
 }

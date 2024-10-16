@@ -50,6 +50,10 @@ using Samples = std::vector<float>;
 using BitView = std::span<const uint8_t>;
 using ByteView = std::span<const uint8_t>;
 using SampleView = std::span<const float>;
+// mut span
+using MutBitView = std::span<uint8_t>;
+using MutByteView = std::span<uint8_t>;
+using MutSampleView = std::span<float>;
 
 namespace Signal {
 

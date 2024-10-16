@@ -6,7 +6,6 @@
 #include <boost/asio/signal_set.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/write.hpp>
-#include "log.h"
 
 using boost::asio::awaitable;
 using boost::asio::detached;
@@ -18,10 +17,12 @@ namespace this_coro = boost::asio::this_coro;
   boost::asio::use_awaitable_t(__FILE__, __LINE__, __PRETTY_FUNCTION__)
 #endif
 
-#include "utils.h"
 #include "chirp.h"
 #include "fsk.h"
+#include "hamming.h"
+#include "log.h"
 #include "supersonic.h"
+#include "utils.h"
 
 namespace SuperSonic {
 
@@ -39,9 +40,11 @@ class Sphy {
   // FSK
   static constexpr float FSK_FREQ = 2000;
   static constexpr auto FSK_OPTION = Signal::FSKOption(FSK_FREQ);
-  static constexpr size_t BIN_PAYLOAD_SIZE = 50;
+  static constexpr size_t BIN_PAYLOAD_SIZE = 20;
+  static constexpr size_t FEC_PAYLOAD_SIZE =
+      Hamming::hamming_encoded_length(BIN_PAYLOAD_SIZE);
   static constexpr size_t PHY_PAYLOAD_SIZE =
-      FSK_OPTION.symbol_samples * BIN_PAYLOAD_SIZE;
+      FSK_OPTION.symbol_samples * FEC_PAYLOAD_SIZE;
   static constexpr size_t FRAME_GAP_SIZE = 48;
   static constexpr size_t FRAME_SIZE =
       Signal::CHIRP1_LEN + PHY_PAYLOAD_SIZE + FRAME_GAP_SIZE;
@@ -76,7 +79,8 @@ class Sphy {
 
   awaitable<Bits> rx() {
     auto phy_payload = co_await receive_frame();
-    auto bits = Signal::fsk_demodulate(phy_payload, FSK_OPTION);
+    auto fec_bits = Signal::fsk_demodulate(phy_payload, FSK_OPTION);
+    auto bits = Hamming::hamming_decode(fec_bits);
     co_return bits;
   }
 
@@ -106,7 +110,8 @@ class Sphy {
       LOG_ERROR("Invalid bits size: {}", bits.size());
       co_return;
     }
-    auto wave = Signal::fsk_modulate(bits, FSK_OPTION);
+    auto fec = Hamming::hamming_encode(bits);
+    auto wave = Signal::fsk_modulate(fec, FSK_OPTION);
     co_await send_frame(wave);
   }
 
