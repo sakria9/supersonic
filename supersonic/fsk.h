@@ -1,5 +1,7 @@
 #pragma once
 
+#include <kiss_fft.h>
+
 #include "supersonic.h"
 #include "utils.h"
 
@@ -39,17 +41,28 @@ inline Bits fsk_demodulate(SampleView wave, FSKOption opt) {
   }
 
   auto t = linspace(0, opt.symbol_time, opt.symbol_samples);
-  auto one = sine_wave(opt.freq, t);
-  auto zero = sine_wave(opt.freq * 2, t);
+
+  auto cfg = kiss_fft_alloc(opt.symbol_samples, 0, 0, 0);
+  kiss_fft_cpx in[opt.symbol_samples], out[opt.symbol_samples];
 
   Bits bits;
   bits.reserve(wave.size() / opt.symbol_samples);
   for (size_t i = 0; i < wave.size(); i += opt.symbol_samples) {
     SampleView symbol(wave.begin() + i, opt.symbol_samples);
-    auto corr_one = std::abs(dot(symbol, one));
-    auto corr_zero = std::abs(dot(symbol, zero));
-    bits.push_back(corr_one > corr_zero);
+    for (size_t j = 0; j < opt.symbol_samples; j++) {
+      in[j].r = symbol[j];
+      in[j].i = 0;
+    }
+
+    kiss_fft(cfg, in, out);
+
+    float f1_mag = std::sqrt(out[1].r * out[1].r + out[1].i * out[1].i);
+    float f2_mag = std::sqrt(out[2].r * out[2].r + out[2].i * out[2].i);
+    bits.push_back(f1_mag > f2_mag);
   }
+
+  free(cfg);
+
   return bits;
 }
 
