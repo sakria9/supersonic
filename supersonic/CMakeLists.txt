@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 23)
 function(add_custom_executable target_name source_file)
     add_executable(${target_name} ${source_file})
     target_include_directories(${target_name} PRIVATE ${CMAKE_SOURCE_DIR}/libs/AudioFile)
-    target_link_libraries(${target_name} PRIVATE Jack::Jack fmt::fmt Boost::asio Boost::unit_test_framework Boost::lockfree spdlog::spdlog cxxopts::cxxopts)
+    target_link_libraries(${target_name} PRIVATE Jack::Jack fmt::fmt Boost::asio Boost::unit_test_framework Boost::lockfree kissfft::kissfft spdlog::spdlog cxxopts::cxxopts)
 endfunction()
 
 # Add executables using the custom function

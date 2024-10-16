@@ -30,6 +30,8 @@ set(SPDLOG_FMT_EXTERNAL ON)
 add_subdirectory(libs/spdlog)
 # include cxxopts
 add_subdirectory(libs/cxxopts)
+# include kissfft
+add_subdirectory(libs/kissfft)
 
 
 # Include sub-projects.
