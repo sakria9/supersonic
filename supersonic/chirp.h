@@ -10,13 +10,13 @@ namespace Signal {
 inline constexpr std::vector<float> generate_chirp(float f0,
                                                    float c,
                                                    float duration) {
-  auto f1 = c * duration + f0;
+  // auto f1 = c * duration + f0;
 
   auto phi = [f0, c](float t) { return 2 * M_PI * (c / 2 * t * t + f0 * t); };
 
   auto t = linspace(0, duration, int(kSampleRate * duration));
   auto chirp = zeros(t.size());
-  for (int i = 0; i < t.size(); i++) {
+  for (size_t i = 0; i < t.size(); i++) {
     chirp[i] = sin(phi(t[i]));
   }
 

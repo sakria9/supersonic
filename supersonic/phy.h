@@ -167,7 +167,6 @@ class Sphy {
 
   awaitable<std::vector<float>> receive_frame() {
     using namespace Signal;
-    enum class State { PREAMBLE, PAYLOAD } state = State::PREAMBLE;
 
     static const size_t chirp_len = chirp.size();
     static constexpr size_t PREMABLE_PEEK_SIZE = 64;

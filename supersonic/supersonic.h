@@ -53,7 +53,7 @@ class Saudio {
     LOG_INFO("supersonic::run");
 
     // create a new Jack client
-    if (opt_.client_name.size() > jack_client_name_size()) {
+    if (opt_.client_name.size() > (size_t)jack_client_name_size()) {
       LOG_ERROR("Client name is too long.");
       return 1;
     }
@@ -171,8 +171,6 @@ class Saudio {
   TxRingBuffer tx_buffer;
 
  private:
-  bool warned_tx_buffer_ = false;
-
   // this is called in jack thread
   static int jack_process_callback_handler(jack_nframes_t nframes, void* arg) {
     return reinterpret_cast<Saudio*>(arg)->process_callback(nframes);
@@ -183,9 +181,8 @@ class Saudio {
     auto rx = (jack_default_audio_sample_t*)jack_port_get_buffer(input_port_,
                                                                  nframes);
     if (rx_buffer.write_available() < nframes) {
-      auto to_drop = nframes - rx_buffer.write_available();
       LOG_WARN("Rx buffer is full. Going to reset RX buffer.");
-      rx_buffer.consume_all([](float e) {});
+      rx_buffer.consume_all([](float) {});
     }
     auto pushed = rx_buffer.push(rx, nframes);
     if (pushed != nframes) {

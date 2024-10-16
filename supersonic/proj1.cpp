@@ -13,13 +13,13 @@ void print_bits(SuperSonic::Bits bits, std::string prefix = "") {
 }
 
 awaitable<void> async_send(SuperSonic::Sphy& phy) {
-  static constexpr int rounds = 100;
+  static constexpr int rounds = 10;
 
   std::ofstream ofs("input.txt");
 
   for (int i = 0; i < rounds; i++) {
     SuperSonic::Bits bits(SuperSonic::Sphy::BIN_PAYLOAD_SIZE);
-    for (int i = 0; i < bits.size(); i++) {
+    for (size_t i = 0; i < bits.size(); i++) {
       bits[i] = rand() % 2;
     }
 

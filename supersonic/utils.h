@@ -104,7 +104,7 @@ auto dot(V1 a, V2 b) {
     return static_cast<T>(0);
   }
   T result = 0;
-  for (int i = 0; i < a.size(); i++) {
+  for (size_t i = 0; i < a.size(); i++) {
     result += a[i] * b[i];
   }
   return result;
@@ -116,7 +116,7 @@ auto absv(V a) {
   using T = typename V::value_type;
   std::vector<T> result;
   result.reserve(a.size());
-  for (int i = 0; i < a.size(); i++) {
+  for (size_t i = 0; i < a.size(); i++) {
     result.push_back(std::abs(a[i]));
   }
   return result;
@@ -127,7 +127,7 @@ template <typename V>
 auto maxv(V a) {
   using T = typename V::value_type;
   T result = a[0];
-  for (int i = 1; i < a.size(); i++) {
+  for (size_t i = 1; i < a.size(); i++) {
     result = std::max(result, a[i]);
   }
   return result;
@@ -154,7 +154,7 @@ auto scale(V a, float s) {
   using T = typename V::value_type;
   std::vector<T> result;
   result.reserve(a.size());
-  for (int i = 0; i < a.size(); i++) {
+  for (size_t i = 0; i < a.size(); i++) {
     result.push_back(a[i] * s);
   }
   return result;
@@ -165,7 +165,7 @@ auto sine_wave(float freq, V t, float phase = 0) {
   using T = typename V::value_type;
   std::vector<T> result;
   result.reserve(t.size());
-  for (int i = 0; i < t.size(); i++) {
+  for (size_t i = 0; i < t.size(); i++) {
     result.push_back(std::sin(2 * M_PI * freq * t[i] + phase));
   }
   return result;

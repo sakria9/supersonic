@@ -55,11 +55,8 @@ struct Objective2 {
     constexpr int seconds = 10;
 
     constexpr int nframes = 128;
-    constexpr int sample_rate = 48000;
 
     // First 10 seconds: Play the predefined sound wave and record the playing
-    auto start_time = std::chrono::high_resolution_clock::now();
-    size_t play_index = 0;
     std::vector<float> record_stream;
     LOG_INFO("start playing the predefined sound wave");
 
