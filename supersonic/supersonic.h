@@ -9,19 +9,19 @@
 namespace SuperSonic {
 
 struct TxTask {
-  std::span<const float> data;
+  Samples data;
   size_t played_index;
   std::atomic_flag* completed;
-  TxTask(std::span<const float> data,
-         size_t played_index,
-         std::atomic_flag* completed)
-      : data(data), played_index(played_index), completed(completed) {}
-  TxTask(std::span<const float> data, std::atomic_flag* completed)
-      : data(data), played_index(0), completed(completed) {}
-  TxTask(std::span<const float> data, size_t played_index)
-      : data(data), played_index(played_index), completed(nullptr) {}
-  TxTask(std::span<const float> data)
-      : data(data), played_index(0), completed(nullptr) {}
+  TxTask(SampleView data, size_t played_index, std::atomic_flag* completed)
+      : data(data.begin(), data.end()),
+        played_index(played_index),
+        completed(completed) {}
+
+  TxTask(SampleView data, std::atomic_flag* completed)
+      : TxTask(data, 0, completed) {}
+  TxTask(SampleView data, size_t played_index)
+      : TxTask(data, played_index, nullptr) {}
+  TxTask(SampleView data) : TxTask(data, 0, nullptr) {}
 };
 
 using RingBuffer = boost::lockfree::spsc_queue<float>;
@@ -222,19 +222,20 @@ class Saudio {
         }
       }
     }
-    if (wrote != nframes) {
-      // fill 0 if not enough data
-      std::fill(tx + wrote, tx + nframes, .0f);
-      if (!warned_tx_buffer_) {
-        LOG_WARN(
-            "Write TX failed. Expected to write {} frames, but wrote {} "
-            "frames.",
-            nframes, wrote);
-        warned_tx_buffer_ = true;
-      }
-    } else {
-      warned_tx_buffer_ = false;
-    }
+    std::fill(tx + wrote, tx + nframes, .0f);
+    // if (wrote != nframes) {
+    //   // fill 0 if not enough data
+    //   std::fill(tx + wrote, tx + nframes, .0f);
+    //   if (!warned_tx_buffer_) {
+    //     LOG_WARN(
+    //         "Write TX failed. Expected to write {} frames, but wrote {} "
+    //         "frames.",
+    //         nframes, wrote);
+    //     warned_tx_buffer_ = true;
+    //   }
+    // } else {
+    //   warned_tx_buffer_ = false;
+    // }
 
     if (opt_.enable_raw_log) {
       if (log_tx_buffer.push(tx, nframes) != nframes) {

@@ -42,9 +42,14 @@ typename std::optional<typename AudioFile<T>::AudioBuffer> read_wav(
 
 namespace SuperSonic {
 
+// vector
 using Bits = std::vector<uint8_t>;
 using Bytes = std::vector<uint8_t>;
 using Samples = std::vector<float>;
+// span
+using BitView = std::span<const uint8_t>;
+using ByteView = std::span<const uint8_t>;
+using SampleView = std::span<const float>;
 
 namespace Signal {
 

@@ -13,27 +13,53 @@ void print_bits(SuperSonic::Bits bits, std::string prefix = "") {
 }
 
 awaitable<void> async_send(SuperSonic::Sphy& phy) {
-  steady_timer timer(co_await this_coro::executor);
-  while (1) {
-    SuperSonic::Bits bits(SuperSonic::Sphy::PAYLOAD_SIZE);
+  static constexpr int rounds = 100;
+
+  std::ofstream ofs("input.txt");
+
+  for (int i = 0; i < rounds; i++) {
+    SuperSonic::Bits bits(SuperSonic::Sphy::BIN_PAYLOAD_SIZE);
     for (int i = 0; i < bits.size(); i++) {
       bits[i] = rand() % 2;
     }
-    LOG_INFO("Sending bits");
-    co_await phy.send_bits(bits);
-    print_bits(bits, "Sent ");
-    
-    timer.expires_after(std::chrono::seconds(1));
-    co_await timer.async_wait(use_awaitable);
+
+    for (auto b : bits) {
+      ofs << (bool)b;
+    }
+    ofs << std::endl;
+
+    // LOG_INFO("Sending bits");
+    co_await phy.tx(std::move(bits));
+    // print_bits(bits, "Sent ");
+
+    // steady_timer timer(co_await this_coro::executor);
+    // timer.expires_after(std::chrono::seconds(1));
+    // co_await timer.async_wait(use_awaitable);
   }
+
+  LOG_INFO("Send finished");
 }
 
 awaitable<void> async_recv(SuperSonic::Sphy& phy) {
+  std::ofstream ofs("output.txt");
   while (1) {
-    auto frame = co_await phy.receive_bits();
+    auto frame = co_await phy.rx();
     LOG_INFO("Frame received with size {}", frame.size());
-    print_bits(frame, "Recv ");
+    // print_bits(frame, "Recv ");
+    for (auto b : frame) {
+      ofs << (bool)b;
+    }
+    ofs << std::endl;
+    ofs.flush();
   }
+}
+
+awaitable<void> async_main(SuperSonic::Sphy& phy) {
+  co_await phy.init();
+
+  auto ex = co_await this_coro::executor;
+  co_spawn(ex, async_recv(phy), detached);
+  co_spawn(ex, async_send(phy), detached);
 }
 
 int main(int argc, char** argv) {
@@ -61,7 +87,6 @@ int main(int argc, char** argv) {
   phy_opt.supersonic_option = opt;
 
   SuperSonic::Sphy phy(phy_opt);
-  phy.init();
 
   try {
     boost::asio::io_context io_context(1);
@@ -69,8 +94,7 @@ int main(int argc, char** argv) {
     boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
     signals.async_wait([&](auto, auto) { io_context.stop(); });
 
-    co_spawn(io_context, async_recv(phy), detached);
-    co_spawn(io_context, async_send(phy), detached);
+    co_spawn(io_context, async_main(phy), detached);
 
     io_context.run();
   } catch (std::exception& e) {

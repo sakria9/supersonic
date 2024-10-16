@@ -27,6 +27,7 @@ inline constexpr std::vector<float> generate_chirp(float f0,
   return chirp;
 }
 
+static constexpr size_t CHIRP1_LEN = kSampleRate * 0.001;
 inline auto generate_chirp1() {
   return generate_chirp(5000, 5000000, 0.001);
 }
