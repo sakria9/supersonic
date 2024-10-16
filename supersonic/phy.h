@@ -59,7 +59,10 @@ class Sphy {
 
   awaitable<void> init() {
     supersonic_ = std::make_unique<Saudio>(opt_.supersonic_option);
-    supersonic_->run();
+    int rc = supersonic_->run();
+    if (rc) {
+      throw std::runtime_error("Failed to run supersonic");
+    }
     auto ex = co_await this_coro::executor;
 
     tx_channel_ = std::make_unique<TxChannel>(ex, TX_BUFFER_SIZE);

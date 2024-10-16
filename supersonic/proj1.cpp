@@ -13,7 +13,7 @@ void print_bits(SuperSonic::Bits bits, std::string prefix = "") {
 }
 
 awaitable<void> async_send(SuperSonic::Sphy& phy) {
-  static constexpr int rounds = 10;
+  static constexpr int rounds = 500;
 
   std::ofstream ofs("input.txt");
 
