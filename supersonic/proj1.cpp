@@ -33,9 +33,11 @@ awaitable<void> async_send(SuperSonic::Sphy& phy) {
 
   bits = rs.encode_many(bits);
   bits = uniform_reorder(bits);
-  const int rounds =
+  const size_t rounds =
       (bits.size() + phy.opt_.bin_payload_size - 1) / phy.opt_.bin_payload_size;
   bits.resize(rounds * phy.opt_.bin_payload_size);
+
+  LOG_INFO("Total {} warmup rounds", warm_up_rounds);
 
   for (int i = 0; i < warm_up_rounds; i++) {
     SuperSonic::Bits bits(phy.opt_.bin_payload_size);
@@ -45,7 +47,9 @@ awaitable<void> async_send(SuperSonic::Sphy& phy) {
     co_await phy.tx(std::move(bits));
   }
 
-  for (int i = 0; i < rounds; i++) {
+  LOG_INFO("Total {} data rounds", rounds);
+
+  for (size_t i = 0; i < rounds; i++) {
     BitView view(bits.data() + i * phy.opt_.bin_payload_size,
                  phy.opt_.bin_payload_size);
     co_await phy.tx(view);
@@ -67,7 +71,7 @@ awaitable<void> async_recv(boost::asio::io_context& ctx,
   using namespace SuperSonic;
 
   auto rs_size = rs.encoded_size(recv_size);
-  int rounds =
+  size_t rounds =
       (rs_size + phy.opt_.bin_payload_size - 1) / phy.opt_.bin_payload_size;
   SuperSonic::Bits bits;
 
@@ -83,8 +87,13 @@ awaitable<void> async_recv(boost::asio::io_context& ctx,
       co_return;
     }
   }
+
+  LOG_INFO("Warmup finished");
+  LOG_INFO("Start receiving");
+
   auto start = std::chrono::high_resolution_clock::now();
-  for (int i = 0; i < rounds; i++) {
+  for (size_t i = 0; i < rounds; i++) {
+    LOG_INFO("Round {}", i);
     auto frame = co_await (phy.rx() || expiry(10));
     if (frame.index() == 1) {
       timeout();
@@ -140,7 +149,7 @@ awaitable<void> async_main(boost::asio::io_context& ctx,
 }
 
 int main(int argc, char** argv) {
-  cxxopts::Options options("supersonic", "Supersonic Project 0");
+  cxxopts::Options options("supersonic", "Supersonic Project 1");
   // clang-format off
   options.add_options()
     ("h,help", "Print usage")

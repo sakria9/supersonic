@@ -31,6 +31,11 @@ add_subdirectory(libs/spdlog)
 # include cxxopts
 add_subdirectory(libs/cxxopts)
 # include kissfft
+set(KISSFFT_TOOLS OFF)
+set(KISSFFT_TEST OFF)
+set(KISSFFT_PKGCONFIG OFF)
+set(KISSFFT_STATIC ON)
+set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(libs/kissfft)
 
 

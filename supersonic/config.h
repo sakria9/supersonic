@@ -37,10 +37,10 @@ struct OFDMOption {
       : symbol_freq(symbol_freq),
         symbol_bits(symbol_bits),
         channels(channels),
-        real_symbol_samples(kSampleRate / symbol_freq),
+        real_symbol_samples(int(kSampleRate / symbol_freq)),
         shift_samples(shift_samples),
         symbol_samples(shift_samples + real_symbol_samples + shift_samples),
-        symbol_time(1.0 / symbol_freq) {
+        symbol_time(1.0f / symbol_freq) {
     LOG_INFO("OFDMOption: symbol_freq = {}, symbol_bits = {}, channels = {}",
              symbol_freq, symbol_bits, fmt::join(channels, ", "));
 
@@ -143,7 +143,7 @@ inline Option load_option(std::string filename) {
                           .transform([](const boost::json::value& v) {
                             std::vector<int> result;
                             for (const auto& e : v.as_array()) {
-                              result.push_back(e.as_int64());
+                              result.push_back((int)e.as_int64());
                             }
                             return result;
                           });
@@ -155,8 +155,8 @@ inline Option load_option(std::string filename) {
               "symbol_freq, symbol_bits, channels, "
               "shift_samples must be specified together");
         }
-        return OFDMOption(*symbol_freq, *symbol_bits, *channels,
-                          *shift_samples);
+        return OFDMOption((float)*symbol_freq, (int)*symbol_bits, *channels,
+                          (int)*shift_samples);
       } else {
         return OFDMOption();
       }

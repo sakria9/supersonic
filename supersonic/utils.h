@@ -2,6 +2,8 @@
 
 #include <AudioFile.h>
 #include <optional>
+#include <span>
+#include <numbers>
 
 #include "log.h"
 
@@ -14,7 +16,7 @@ void write_wav(const std::string& filename,
     return;
   }
   AudioFile<T> audio_file;
-  audio_file.setAudioBufferSize(1, samples.size());
+  audio_file.setAudioBufferSize(1, (int)samples.size());
   audio_file.setSampleRate(sample_rate);
   audio_file.setBitDepth(32);
   audio_file.samples[0] = samples;
@@ -98,7 +100,7 @@ constexpr auto flip(V a) {
 
 // np.zeros(n)
 template <typename T = float>
-constexpr std::vector<T> zeros(int n) {
+constexpr std::vector<T> zeros(size_t n) {
   return std::vector<T>(n, 0);
 }
 
@@ -184,7 +186,7 @@ auto sine_wave(float freq, V t, float phase = 0) {
   std::vector<T> result;
   result.reserve(t.size());
   for (size_t i = 0; i < t.size(); i++) {
-    result.push_back(std::sin(2 * M_PI * freq * t[i] + phase));
+    result.push_back(static_cast<T>(std::sin(2 * std::numbers::pi * freq * t[i] + phase)));
   }
   return result;
 }
@@ -210,8 +212,8 @@ inline int calculateBestReorder(int size) {
 }
 
 inline Bits reorderBits(BitView bits) {
-  int p = calculateBestReorder(bits.size());
-  int q = bits.size() / p;
+  int p = calculateBestReorder((int)bits.size());
+  int q = (int)bits.size() / p;
   Bits reorderedBits(bits.size());
 
   for (int i = 0; i < p; i++) {
@@ -224,8 +226,8 @@ inline Bits reorderBits(BitView bits) {
 }
 
 inline Bits dereorderBits(BitView reorderedBits) {
-  int p = calculateBestReorder(reorderedBits.size());
-  int q = reorderedBits.size() / p;
+  int p = calculateBestReorder((int)reorderedBits.size());
+  int q = (int)reorderedBits.size() / p;
   Bits bits(reorderedBits.size());
 
   for (int i = 0; i < p; i++) {
@@ -252,7 +254,7 @@ inline std::vector<int> permutation(int n) {
 }
 
 inline Bits uniform_reorder(BitView bits) {
-  auto perm = permutation(bits.size());
+  auto perm = permutation((int)bits.size());
   Bits reorderedBits(bits.size());
   for (size_t i = 0; i < bits.size(); i++) {
     reorderedBits[perm[i]] = bits[i];
@@ -261,7 +263,7 @@ inline Bits uniform_reorder(BitView bits) {
 }
 
 inline Bits uniform_dereorder(BitView reorderedBits) {
-  auto perm = permutation(reorderedBits.size());
+  auto perm = permutation((int)reorderedBits.size());
   Bits bits(reorderedBits.size());
   for (size_t i = 0; i < reorderedBits.size(); i++) {
     bits[i] = reorderedBits[perm[i]];

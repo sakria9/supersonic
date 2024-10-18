@@ -120,7 +120,7 @@ class OFDM {
         channel_mags[j] = mag;
       }
 
-      auto max_channel_idx = Signal::argmax(channel_mags);
+      auto max_channel_idx = static_cast<uint8_t>(Signal::argmax(channel_mags));
       if (opt.symbol_bits == 1) {
         bits.push_back(max_channel_idx % 2);
       } else if (opt.symbol_bits == 2) {
