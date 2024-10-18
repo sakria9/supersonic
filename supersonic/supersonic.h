@@ -3,6 +3,7 @@
 #include <jack/jack.h>
 #include <boost/lockfree/spsc_queue.hpp>
 
+#include "config.h"
 #include "log.h"
 #include "utils.h"
 
@@ -28,21 +29,9 @@ using RingBuffer = boost::lockfree::spsc_queue<float>;
 using TxRingBuffer = boost::lockfree::spsc_queue<TxTask>;
 using RxRingBuffer = RingBuffer;
 
-constexpr int kSampleRate = 48000;
-
 class Saudio {
  public:
-  struct SaudioOption {
-    std::string client_name = "supersonic";
-
-    std::string input_port = "system:capture_1";
-    std::string output_port = "system:playback_1";
-
-    size_t ringbuffer_size = kSampleRate * 5;
-
-    bool enable_raw_log = true;
-  };
-  Saudio(SaudioOption& opt)
+  Saudio(Config::SaudioOption& opt)
       : opt_(opt),
         rx_buffer(opt.ringbuffer_size),
         tx_buffer(opt.ringbuffer_size) {}
@@ -154,7 +143,7 @@ class Saudio {
   }
 
  private:
-  SaudioOption opt_;
+  Config::SaudioOption opt_;
 
   jack_client_t* client_ = nullptr;
   jack_port_t *input_port_ = nullptr, *output_port_ = nullptr;
@@ -165,6 +154,8 @@ class Saudio {
   std::vector<float> log_tx_buffer_data;
   std::jthread log_thread;
   std::atomic_flag stop_log_thread = ATOMIC_FLAG_INIT;
+
+  bool warned_rx_buffer_ = false;
 
  public:
   RxRingBuffer rx_buffer;
@@ -181,7 +172,10 @@ class Saudio {
     auto rx = (jack_default_audio_sample_t*)jack_port_get_buffer(input_port_,
                                                                  nframes);
     if (rx_buffer.write_available() < nframes) {
-      LOG_WARN("Rx buffer is full. Going to reset RX buffer.");
+      if (warned_rx_buffer_ == false) {
+        LOG_WARN("Rx buffer is full. Going to reset RX buffer.");
+        warned_rx_buffer_ = true;
+      }
       rx_buffer.consume_all([](float) {});
     }
     auto pushed = rx_buffer.push(rx, nframes);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "supersonic.h"
+#include "magic.h"
 #include "utils.h"
 
 namespace SuperSonic {

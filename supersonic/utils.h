@@ -1,13 +1,13 @@
 #pragma once
 
+#include <AudioFile.h>
 #include <optional>
-#include "AudioFile.h"
 
 #include "log.h"
 
 template <typename T = float>
 void write_wav(const std::string& filename,
-               const typename std::vector<float>& samples,
+               const typename std::vector<T>& samples,
                int sample_rate) {
   if (samples.size() == 0) {
     LOG_ERROR("Error writing to wav file {}, sample count is 0.", filename);
@@ -20,6 +20,24 @@ void write_wav(const std::string& filename,
   audio_file.samples[0] = samples;
   audio_file.save(filename, AudioFileFormat::Wave);
   LOG_INFO("Wrote {} samples to {}", samples.size(), filename);
+}
+
+template <typename T = float>
+void write_txt(const std::string& filename,
+               const typename std::vector<T>& samples) {
+  if (samples.size() == 0) {
+    LOG_ERROR("Error writing to file {}, sample count is 0.", filename);
+    return;
+  }
+  // should be numpy readable
+  // how to read in python:
+  // import numpy as np
+  // wave = np.loadtxt("wave.txt")
+  std::ofstream ofs(filename);
+  for (auto e : samples) {
+    ofs << e << std::endl;
+  }
+  ofs.close();
 }
 
 template <typename T = float>
@@ -79,7 +97,7 @@ constexpr auto flip(V a) {
 }
 
 // np.zeros(n)
-template <typename T=float>
+template <typename T = float>
 constexpr std::vector<T> zeros(int n) {
   return std::vector<T>(n, 0);
 }
@@ -172,5 +190,83 @@ auto sine_wave(float freq, V t, float phase = 0) {
 }
 
 }  // namespace Signal
+
+inline int calculateBestReorder(int size) {
+  int bestP = 1;
+  int minDifference = size;
+
+  for (int i = 1; i <= std::sqrt(size); i++) {
+    if (size % i == 0) {
+      int q = size / i;
+      int difference = std::abs(i - q);
+      if (difference < minDifference) {
+        minDifference = difference;
+        bestP = i;
+      }
+    }
+  }
+
+  return bestP;
+}
+
+inline Bits reorderBits(BitView bits) {
+  int p = calculateBestReorder(bits.size());
+  int q = bits.size() / p;
+  Bits reorderedBits(bits.size());
+
+  for (int i = 0; i < p; i++) {
+    for (int j = 0; j < q; j++) {
+      reorderedBits[j * p + i] = bits[i * q + j];
+    }
+  }
+
+  return reorderedBits;
+}
+
+inline Bits dereorderBits(BitView reorderedBits) {
+  int p = calculateBestReorder(reorderedBits.size());
+  int q = reorderedBits.size() / p;
+  Bits bits(reorderedBits.size());
+
+  for (int i = 0; i < p; i++) {
+    for (int j = 0; j < q; j++) {
+      bits[i * q + j] = reorderedBits[j * p + i];
+    }
+  }
+
+  return bits;
+}
+
+inline std::vector<int> permutation(int n) {
+  std::vector<int> result(n);
+  for (int i = 0; i < n; i++) {
+    result[i] = i;
+  }
+  srand(114514);
+  // Fisher–Yates shuffle Algorithm to shuffle the array
+  for (int i = n - 1; i > 0; i--) {
+    int j = rand() % (i + 1);
+    std::swap(result[i], result[j]);
+  }
+  return result;
+}
+
+inline Bits uniform_reorder(BitView bits) {
+  auto perm = permutation(bits.size());
+  Bits reorderedBits(bits.size());
+  for (size_t i = 0; i < bits.size(); i++) {
+    reorderedBits[perm[i]] = bits[i];
+  }
+  return reorderedBits;
+}
+
+inline Bits uniform_dereorder(BitView reorderedBits) {
+  auto perm = permutation(reorderedBits.size());
+  Bits bits(reorderedBits.size());
+  for (size_t i = 0; i < reorderedBits.size(); i++) {
+    bits[i] = reorderedBits[perm[i]];
+  }
+  return bits;
+}
 
 }  // namespace SuperSonic

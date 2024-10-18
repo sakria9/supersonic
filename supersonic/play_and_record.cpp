@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  Saudio::SaudioOption opt;
+  SuperSonic::Config::SaudioOption opt;
   opt.input_port = result["input"].as<std::string>();
   opt.output_port = result["output"].as<std::string>();
   opt.ringbuffer_size = 128 * 100;

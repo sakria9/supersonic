@@ -16,3 +16,6 @@
 [submodule "libs/kissfft"]
 	path = libs/kissfft
 	url = https://github.com/mborgerding/kissfft.git
+[submodule "libs/code"]
+	path = libs/code
+	url = https://github.com/aicodix/code.git

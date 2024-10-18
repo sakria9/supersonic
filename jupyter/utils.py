@@ -159,11 +159,11 @@ def gen_chirp(f_0, c, duration, rate):
     chirp = np.sin(phi(times))
     chirp_rev = -np.flip(chirp)
     chirp = np.concatenate((chirp, chirp_rev))
-    chirp = np.concatenate((chirp, np.zeros(int(0.001*rate))))
+    chirp = np.concatenate((chirp, np.zeros(48)))
     return chirp
 
 
-chirp1 = gen_chirp(5000, 10000000, 0.001, 48000)
+chirp1 = gen_chirp(5000, 5000000, 0.001, 48000)
 chirp2 = gen_chirp(7000, 400000, 0.01, 48000)
 
 def locate_chirp(data, chirp):

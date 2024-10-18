@@ -18,9 +18,8 @@ namespace this_coro = boost::asio::this_coro;
 #endif
 
 #include "chirp.h"
-#include "fsk.h"
-#include "hamming.h"
 #include "log.h"
+#include "ofdm.h"
 #include "supersonic.h"
 #include "utils.h"
 
@@ -36,29 +35,34 @@ class Sphy {
 
   // buffer
   static constexpr size_t TX_BUFFER_SIZE = 100;
-
-  // FSK
-  static constexpr float FSK_FREQ = 2000;
-  static constexpr auto FSK_OPTION = Signal::FSKOption(FSK_FREQ);
-  static constexpr size_t BIN_PAYLOAD_SIZE = 20;
-  static constexpr size_t FEC_PAYLOAD_SIZE =
-      Hamming::hamming_encoded_length(BIN_PAYLOAD_SIZE);
-  static constexpr size_t PHY_PAYLOAD_SIZE =
-      FSK_OPTION.symbol_samples * FEC_PAYLOAD_SIZE;
-  static constexpr size_t FRAME_GAP_SIZE = 48;
-  static constexpr size_t FRAME_SIZE =
-      Signal::CHIRP1_LEN + PHY_PAYLOAD_SIZE + FRAME_GAP_SIZE;
-
+  // chirp
   const std::vector<float> chirp = Signal::generate_chirp1();
 
-  struct SphyOption {
-    Saudio::SaudioOption supersonic_option;
-  };
+  Sphy(Config::SphyOption opt) : opt_(opt), ofdm_(opt.ofdm_option) {}
 
-  Sphy(SphyOption& opt) : opt_(opt) {}
+  std::vector<Samples> frames;
+  std::vector<Samples> recv_frames;
+  ~Sphy() {
+#if 0
+    LOG_INFO("frames size = {}", frames.size());
+    LOG_INFO("recv_frames size = {}", recv_frames.size());
+    // write to ddata/frames{i}.txt
+    // write to ddara/recv_frames{i}.txt
+    // txt should be numpy readable
+    for (size_t i = 0; i < frames.size(); i++) {
+      std::string filename = fmt::format("ddata/frames{}.txt", i);
+      write_txt(filename, frames[i]);
+    }
+    for (size_t i = 0; i < recv_frames.size(); i++) {
+      std::string filename = fmt::format("ddata/recv_frames{}.txt", i);
+      write_txt(filename, recv_frames[i]);
+    }
+#endif
+    LOG_INFO("Sphy destructed");
+  }
 
   awaitable<void> init() {
-    supersonic_ = std::make_unique<Saudio>(opt_.supersonic_option);
+    supersonic_ = std::make_unique<Saudio>(opt_.saudio_option);
     int rc = supersonic_->run();
     if (rc) {
       throw std::runtime_error("Failed to run supersonic");
@@ -82,9 +86,12 @@ class Sphy {
 
   awaitable<Bits> rx() {
     auto phy_payload = co_await receive_frame();
-    auto fec_bits = Signal::fsk_demodulate(phy_payload, FSK_OPTION);
-    auto bits = Hamming::hamming_decode(fec_bits);
-    co_return bits;
+
+    recv_frames.push_back(phy_payload);
+
+    auto raw_bits = ofdm_.demodulate(phy_payload);
+
+    co_return raw_bits;
   }
 
   awaitable<void> tx(Bits bits) {
@@ -95,7 +102,10 @@ class Sphy {
     co_await tx_channel_->async_send({}, std::move(bits));
   }
 
- private:
+  awaitable<void> tx(BitView bits) {
+    co_await tx(Bits{bits.begin(), bits.end()});
+  }
+
   awaitable<void> async_main() {
     // handling tx
     if (!tx_channel_) {
@@ -104,23 +114,25 @@ class Sphy {
     }
     while (1) {
       auto bits = co_await tx_channel_->async_receive(use_awaitable);
-      co_await send_bits(bits);
+      co_await send_bits(std::move(bits));
     }
   }
 
-  awaitable<void> send_bits(BitView bits) {
-    if (bits.size() != BIN_PAYLOAD_SIZE) {
+  awaitable<void> send_bits(Bits bits) {
+    if (bits.size() != opt_.bin_payload_size) {
       LOG_ERROR("Invalid bits size: {}", bits.size());
       co_return;
     }
-    auto fec = Hamming::hamming_encode(bits);
-    auto wave = Signal::fsk_modulate(fec, FSK_OPTION);
+
+    auto wave = ofdm_.modulate(std::move((bits)));
+    frames.push_back(wave);
+
     co_await send_frame(wave);
   }
 
   awaitable<void> send_frame(SampleView phy_payload) {
-    auto frame =
-        Signal::concatenate(chirp, phy_payload, Signal::zeros(FRAME_GAP_SIZE));
+    auto frame = Signal::concatenate(chirp, phy_payload,
+                                     Signal::zeros(opt_.frame_gap_size));
     co_await send_audio(std::move(frame));
   }
 
@@ -216,12 +228,12 @@ class Sphy {
       }
     }
 
-    auto phy_payload = zeros(PHY_PAYLOAD_SIZE);
+    auto phy_payload = zeros(opt_.phy_payload_size);
     std::span<float> peek_wave{preamble.data() + chirp_len - PREMABLE_PEEK_SIZE,
                                PREMABLE_PEEK_SIZE};
     // copy to phy_payload
     std::copy(peek_wave.begin(), peek_wave.end(), phy_payload.begin());
-    auto to_read = PHY_PAYLOAD_SIZE - PREMABLE_PEEK_SIZE;
+    auto to_read = opt_.phy_payload_size - PREMABLE_PEEK_SIZE;
     for (size_t i = 0; i < to_read; i++) {
       phy_payload[PREMABLE_PEEK_SIZE + i] = co_await rx_pop();
     }
@@ -229,7 +241,8 @@ class Sphy {
     co_return phy_payload;
   };
 
-  SphyOption opt_;
+  Config::SphyOption opt_;
+  OFDM ofdm_;
   std::unique_ptr<Saudio> supersonic_;
   std::unique_ptr<TxChannel> tx_channel_;
 };
