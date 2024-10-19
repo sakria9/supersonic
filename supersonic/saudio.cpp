@@ -65,7 +65,7 @@ int Saudio::run() {
   for (ma_uint32 iDevice = 0; iDevice < playbackDeviceCount; ++iDevice) {
     if (std::string(pPlaybackDeviceInfos[iDevice].name).contains(opt_.output_port)) {
       deviceConfig.playback.pDeviceID = &pPlaybackDeviceInfos[iDevice].id;
-      LOG_INFO("Output port: {}", opt_.output_port);
+      LOG_INFO("Output port: {}", pPlaybackDeviceInfos[iDevice].name);
       found_output = true;
       break;
     } else {
@@ -76,7 +76,7 @@ int Saudio::run() {
   for (ma_uint32 iDevice = 0; iDevice < captureDeviceCount; ++iDevice) {
     if (std::string(pCaptureDeviceInfos[iDevice].name).contains(opt_.input_port)) {
       deviceConfig.capture.pDeviceID = &pCaptureDeviceInfos[iDevice].id;
-      LOG_INFO("Input port: {}", opt_.input_port);
+      LOG_INFO("Input port: {}",pCaptureDeviceInfos[iDevice].name);
       found_input = true;
       break;
     } else {
