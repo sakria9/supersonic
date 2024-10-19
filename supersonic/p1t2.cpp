@@ -1,4 +1,5 @@
 #include <cxxopts.hpp>
+#include <numbers>
 
 #include "supersonic.h"
 
@@ -12,8 +13,8 @@ struct Objective1 {
     constexpr float phase = 0.0;
     auto sine_wave = [&freq, &amplitude, &phase](int i) {
       float t = (float)i / SuperSonic::kSampleRate;
-      return amplitude * std::sin(2 * M_PI * 1000 * t) +
-             amplitude * std::sin(2 * M_PI * 10000 * t);
+      return amplitude * std::sin(2 * std::numbers::pi * 1000 * t) +
+             amplitude * std::sin(2 * std::numbers::pi * 10000 * t);
     };
 
     const auto cycle = 48;

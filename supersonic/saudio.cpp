@@ -61,10 +61,12 @@ int Saudio::run() {
   deviceConfig.dataCallback = data_callback;
   deviceConfig.pUserData = this;
 
+  bool found_output = false, found_input = false;
   for (ma_uint32 iDevice = 0; iDevice < playbackDeviceCount; ++iDevice) {
     if (std::string(pPlaybackDeviceInfos[iDevice].name) == opt_.output_port) {
       deviceConfig.playback.pDeviceID = &pPlaybackDeviceInfos[iDevice].id;
       LOG_INFO("Output port: {}", opt_.output_port);
+      found_output = true;
       break;
     } else {
       LOG_INFO("{} != {}", pPlaybackDeviceInfos[iDevice].name,
@@ -75,10 +77,19 @@ int Saudio::run() {
     if (std::string(pCaptureDeviceInfos[iDevice].name) == opt_.input_port) {
       deviceConfig.capture.pDeviceID = &pCaptureDeviceInfos[iDevice].id;
       LOG_INFO("Input port: {}", opt_.input_port);
+      found_input = true;
       break;
     } else {
       LOG_INFO("{} != {}", pCaptureDeviceInfos[iDevice].name, opt_.input_port);
     }
+  }
+  if (!found_output) {
+    LOG_ERROR("Output port not found.");
+    return 1;
+  }
+  if (!found_input) {
+    LOG_ERROR("Input port not found.");
+    return 1;
   }
 
   device = new ma_device;
