@@ -19,3 +19,6 @@
 [submodule "libs/code"]
 	path = libs/code
 	url = https://github.com/aicodix/code.git
+[submodule "libs/miniaudio"]
+	path = libs/miniaudio
+	url = https://github.com/mackron/miniaudio
