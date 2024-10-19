@@ -130,7 +130,7 @@ def play_sine_waves(sine_waves: tuple[int, float, float], rate=48000):
 def play_and_record(data, rate, discard=True):
     save_wave_file("../build/temp.wav", rate, data)
 
-    cmd = "../build/supersonic/play_and_record -f ../build/temp.wav -i 'UGREEN CM564 USB Audio  Mono:capture_MONO' -o 'USB2.0 Device Analog Stereo:playback_FL'"
+    cmd = "../build/supersonic/play_and_record -f ../build/temp.wav -i 'UGREEN CM564 USB Audio  Mono' -o 'USB2.0 Device Analog Stereo'"
     # cmd = "..\\out\\build\\x64-debug\\supersonic\\play_and_record.exe -f ../build/temp.wav"
     import subprocess
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

@@ -1,15 +1,15 @@
 {
     "saudio_option": {
-        "input_port": "UGREEN CM564 USB Audio  Mono:capture_MONO",
-        "output_port": "USB2.0 Device Analog Stereo:playback_FL",
+        "input_port": "UGREEN CM564 USB Audio  Mono",
+        "output_port": "USB2.0 Device Analog Stereo",
         "ringbuffer_size": 1280
     },
     "ofdm_option": {
-        "symbol_freq": 3000,
+        "symbol_freq": 4000,
         "symbol_bits": 1,
         "channels": [
-            3,
-            4
+            1,
+            2
         ],
         "shift_samples": 0
     },
