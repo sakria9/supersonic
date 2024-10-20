@@ -1,9 +1,9 @@
 #pragma once
 
 #include <AudioFile.h>
+#include <numbers>
 #include <optional>
 #include <span>
-#include <numbers>
 
 #include "log.h"
 
@@ -186,7 +186,8 @@ auto sine_wave(float freq, V t, float phase = 0) {
   std::vector<T> result;
   result.reserve(t.size());
   for (size_t i = 0; i < t.size(); i++) {
-    result.push_back(static_cast<T>(std::sin(2 * std::numbers::pi * freq * t[i] + phase)));
+    result.push_back(
+        static_cast<T>(std::sin(2 * std::numbers::pi * freq * t[i] + phase)));
   }
   return result;
 }
@@ -239,15 +240,37 @@ inline Bits dereorderBits(BitView reorderedBits) {
   return bits;
 }
 
+class Rand {
+ public:
+  Rand(unsigned int seed = 0) : seed(seed) { setSeed(seed); }
+
+  void setSeed(unsigned int newSeed) {
+    seed = newSeed;
+    state = seed;
+  }
+
+  int nextInt(int min, int max) { return min + (generate() % (max - min + 1)); }
+
+ private:
+  unsigned int seed;
+  unsigned int state;
+
+  unsigned int generate() {
+    // Simple LCG parameters
+    state = (1103515245 * state + 12345) & 0x7fffffff;
+    return state;
+  }
+};
+
 inline std::vector<int> permutation(int n) {
   std::vector<int> result(n);
   for (int i = 0; i < n; i++) {
     result[i] = i;
   }
-  srand(114514);
+  Rand r(114514);
   // Fisher–Yates shuffle Algorithm to shuffle the array
   for (int i = n - 1; i > 0; i--) {
-    int j = rand() % (i + 1);
+    int j = r.nextInt(0, i);
     std::swap(result[i], result[j]);
   }
   return result;
