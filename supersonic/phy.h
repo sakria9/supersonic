@@ -162,12 +162,11 @@ class Sphy {
   }
 
   awaitable<float> rx_pop() {
-    static constexpr float magic = -1;
     // fast path
     if (supersonic_->rx_buffer.read_available()) {
       float e;
       supersonic_->rx_buffer.pop(e);
-      co_return (magic * e);
+      co_return (opt_.magic_factor * e);
     }
 
     while (!supersonic_->rx_buffer.read_available()) {
@@ -177,7 +176,7 @@ class Sphy {
     }
     float e;
     supersonic_->rx_buffer.pop(e);
-    co_return (magic * e);
+    co_return (opt_.magic_factor * e);
   }
 
   awaitable<std::vector<float>> receive_frame() {

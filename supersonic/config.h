@@ -62,17 +62,20 @@ struct SphyOption {
   const size_t phy_payload_size;
   const size_t frame_gap_size;
   const size_t frame_size;
+  const float magic_factor;
 
   SphyOption(SaudioOption saudio_option,
              OFDMOption ofdm_option,
              size_t bin_payload_size = 40,
-             size_t frame_gap_size = 48)
+             size_t frame_gap_size = 48,
+             float magic_factor = -1.0f)
       : saudio_option(saudio_option),
         ofdm_option(ofdm_option),
         bin_payload_size(bin_payload_size),
         phy_payload_size(bin_payload_size * ofdm_option.symbol_samples),
         frame_gap_size(frame_gap_size),
-        frame_size(Signal::CHIRP1_LEN + phy_payload_size + frame_gap_size) {
+        frame_size(Signal::CHIRP1_LEN + phy_payload_size + frame_gap_size),
+        magic_factor(magic_factor) {
     LOG_INFO(
         "SphyOption: bin_payload_size = {}, phy_payload_size = {}, "
         "frame_gap_size = {}, frame_size = {}",

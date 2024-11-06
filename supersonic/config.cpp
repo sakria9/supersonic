@@ -30,6 +30,9 @@ Option load_option(std::string filename) {
     };
     auto to_string = [](const boost::json::value& v) { return v.as_string(); };
     auto to_int = [](const boost::json::value& v) { return v.as_int64(); };
+    auto to_float = [](const boost::json::value& v) {
+      return static_cast<float>(v.as_double());
+    };
 
     SaudioOption saudio_opt;
 
@@ -84,11 +87,12 @@ Option load_option(std::string filename) {
       auto bin_payload_size =
           value_opt(sphy_option, "bin_payload_size").transform(to_int);
       auto frame_gap_size =
-
           value_opt(sphy_option, "frame_gap_size").transform(to_int);
+      auto magic_factor =
+          value_opt(sphy_option, "magic_factor").transform(to_float);
       if (bin_payload_size || frame_gap_size) {
         return SphyOption(saudio_opt, ofdm_opt, *bin_payload_size,
-                          *frame_gap_size);
+                          *frame_gap_size, *magic_factor);
       } else {
         return SphyOption(saudio_opt, ofdm_opt);
       }
