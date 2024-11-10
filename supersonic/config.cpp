@@ -28,7 +28,7 @@ Option load_option(std::string filename) {
         return std::nullopt;
       }
     };
-    auto to_string = [](const boost::json::value& v) { return v.as_string(); };
+    auto to_string = [](const boost::json::value& v) { return std::string(v.as_string()); };
     auto to_int = [](const boost::json::value& v) { return v.as_int64(); };
     auto to_float = [](const boost::json::value& v) {
       return static_cast<float>(v.as_double());

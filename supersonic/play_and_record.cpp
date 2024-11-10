@@ -33,7 +33,9 @@ int main(int argc, char** argv) {
     ("h,help", "Print usage")
     ("i,input", "Input sink", cxxopts::value<std::string>()->default_value("system:capture_1"))
     ("o,output", "Output sink", cxxopts::value<std::string>()->default_value("system:playback_1"))
-    ("f,file", "Wav file", cxxopts::value<std::string>()->default_value("test-audio.wav"));
+    ("f,file", "Wav file", cxxopts::value<std::string>()->default_value("test-audio.wav"))
+    ("ii", "Input index", cxxopts::value<int>()->default_value("0"))
+    ("oi", "Output index", cxxopts::value<int>()->default_value("0"));
   // clang-format on
   auto result = options.parse(argc, argv);
 
@@ -43,8 +45,16 @@ int main(int argc, char** argv) {
   }
 
   SuperSonic::Config::SaudioOption opt;
-  opt.input_port = result["input"].as<std::string>();
-  opt.output_port = result["output"].as<std::string>();
+  if (result.count("ii")) {
+    opt.input_port = result["ii"].as<int>();
+  } else {
+    opt.input_port = result["input"].as<std::string>();
+  }
+  if (result.count("oi")) {
+    opt.output_port = result["oi"].as<int>();
+  } else {
+    opt.output_port = result["output"].as<std::string>();
+  }
   opt.ringbuffer_size = 128 * 100;
   opt.enable_raw_log = true;
 

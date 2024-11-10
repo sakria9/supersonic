@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fmt/ranges.h>
+#include <variant>
 
 #include "chirp.h"
 #include "log.h"
@@ -13,8 +14,8 @@ namespace Config {
 struct SaudioOption {
   std::string client_name = "supersonic";
 
-  std::string input_port = "system:capture_1";
-  std::string output_port = "system:playback_1";
+  std::variant<std::string, int> input_port = "system:capture_1";
+  std::variant<std::string, int> output_port = "system:playback_1";
 
   size_t ringbuffer_size = kSampleRate * 5;
 
