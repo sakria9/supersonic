@@ -1,6 +1,7 @@
 #define BOOST_TEST_MODULE SuperSonicTest
 #include <boost/test/included/unit_test.hpp>  //single-header
 
+#include "crc.h"
 #include "hamming.h"
 #include "utils.h"
 
@@ -99,6 +100,35 @@ BOOST_AUTO_TEST_CASE(HammingEncodeDecode) {
       BOOST_CHECK_EQUAL(decoded[1], 0);
       BOOST_CHECK_EQUAL(decoded[2], 1);
       BOOST_CHECK_EQUAL(decoded[3], 1);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(CRCErrors) {
+  // crc16 test
+  using namespace SuperSonic;
+
+  constexpr size_t N = 128;
+
+  {
+    Bits bits(N);
+    for (size_t i = 0; i < N; i++) {
+      bits[i] = rand() % 2;
+    }
+    auto crc_bits = crc16(bits);
+    BOOST_CHECK_EQUAL(crc_bits.size(), N + 16);
+    BOOST_CHECK(validate_crc16(crc_bits));
+  }
+  {
+    Bits bits(N);
+    for (size_t i = 0; i < N; i++) {
+      bits[i] = rand() % 2;
+    }
+    auto crc_bits = crc16(bits);
+    for (size_t i = 0; i < crc_bits.size(); i++) {
+      crc_bits[i] = 1 - crc_bits[i];
+      BOOST_CHECK(!validate_crc16(crc_bits));
+      crc_bits[i] = 1 - crc_bits[i];
     }
   }
 }
