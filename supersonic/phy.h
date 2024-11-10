@@ -19,7 +19,7 @@ namespace this_coro = boost::asio::this_coro;
 
 #include "chirp.h"
 #include "log.h"
-#include "ofdm.h"
+#include "psk.h"
 #include "supersonic.h"
 #include "utils.h"
 
@@ -38,12 +38,14 @@ class Sphy {
   // chirp
   const std::vector<float> chirp = Signal::generate_chirp1();
 
-  Sphy(Config::SphyOption opt) : opt_(opt), ofdm_(opt.ofdm_option) {}
+  Sphy(Config::SphyOption opt) : opt_(opt) {
+    LOG_INFO("chirp len {}", chirp.size());
+  }
 
   std::vector<Samples> frames;
   std::vector<Samples> recv_frames;
   ~Sphy() {
-#if 0
+#if 1
     LOG_INFO("frames size = {}", frames.size());
     LOG_INFO("recv_frames size = {}", recv_frames.size());
     // write to ddata/frames{i}.txt
@@ -89,7 +91,7 @@ class Sphy {
 
     recv_frames.push_back(phy_payload);
 
-    auto raw_bits = ofdm_.demodulate(phy_payload);
+    auto raw_bits = PSK::demodulate(phy_payload);
 
     co_return raw_bits;
   }
@@ -124,7 +126,7 @@ class Sphy {
       co_return;
     }
 
-    auto wave = ofdm_.modulate(std::move((bits)));
+    auto wave = PSK::modulate(std::move((bits)));
     frames.push_back(wave);
 
     co_await send_frame(wave);
@@ -241,7 +243,6 @@ class Sphy {
   };
 
   Config::SphyOption opt_;
-  OFDM ofdm_;
   std::unique_ptr<Saudio> supersonic_;
   std::unique_ptr<TxChannel> tx_channel_;
 };

@@ -6,7 +6,7 @@
 #include "supersonic.h"
 #include "utils.h"
 
-static constexpr int warm_up_rounds = 50;
+static constexpr int warm_up_rounds = 0;
 static constexpr int rounds = 100;
 
 awaitable<void> async_send(SuperSonic::Sphy& phy) {

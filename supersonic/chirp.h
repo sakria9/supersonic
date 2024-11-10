@@ -27,11 +27,11 @@ inline std::vector<float> generate_chirp(float f0,
   auto chirp_rev = scale(flip(chirp), -1);
   chirp = concatenate(chirp, chirp_rev);
 
-  chirp = concatenate(chirp, zeros(48));
+  chirp = concatenate(chirp, zeros(6));
   return chirp;
 }
 
-static constexpr size_t CHIRP1_LEN = size_t(kSampleRate * 0.001);
+static constexpr size_t CHIRP1_LEN = 96 + 6;
 inline auto generate_chirp1() {
   return generate_chirp(5000, 5000000, 0.001f);
 }

@@ -7,6 +7,8 @@
 #include "log.h"
 #include "magic.h"
 
+#include "psk.h"
+
 namespace SuperSonic {
 
 namespace Config {
@@ -58,7 +60,6 @@ struct OFDMOption {
 
 struct SphyOption {
   SaudioOption saudio_option;
-  const OFDMOption ofdm_option;
   const size_t bin_payload_size;
   const size_t phy_payload_size;
   const size_t frame_gap_size;
@@ -66,14 +67,12 @@ struct SphyOption {
   const float magic_factor;
 
   SphyOption(SaudioOption saudio_option,
-             OFDMOption ofdm_option,
              size_t bin_payload_size = 40,
              size_t frame_gap_size = 48,
              float magic_factor = -1.0f)
       : saudio_option(saudio_option),
-        ofdm_option(ofdm_option),
         bin_payload_size(bin_payload_size),
-        phy_payload_size(bin_payload_size * ofdm_option.symbol_samples),
+        phy_payload_size(bin_payload_size * PSK::symbol_len),
         frame_gap_size(frame_gap_size),
         frame_size(Signal::CHIRP1_LEN + phy_payload_size + frame_gap_size),
         magic_factor(magic_factor) {
@@ -81,10 +80,6 @@ struct SphyOption {
         "SphyOption: bin_payload_size = {}, phy_payload_size = {}, "
         "frame_gap_size = {}, frame_size = {}",
         bin_payload_size, phy_payload_size, frame_gap_size, frame_size);
-    if (bin_payload_size % ofdm_option.symbol_bits != 0) {
-      throw std::runtime_error(
-          "bin_payload_size must be a multiple of symbol_bits");
-    }
   }
 };
 
