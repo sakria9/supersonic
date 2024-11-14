@@ -26,36 +26,33 @@ struct SaudioOption {
 
 struct OFDMOption {
   const float symbol_freq;
-  const int symbol_bits;
   const std::vector<int> channels;
 
   const int real_symbol_samples;
-  const int shift_samples;
+  const int cp_samples;
   const int symbol_samples;
   const float symbol_time;
-  OFDMOption(float symbol_freq,
-             int symbol_bits,
-             std::vector<int> channels,
-             int shift_samples)
 
+  OFDMOption(float symbol_freq, std::vector<int> channels, int cp_samples)
       : symbol_freq(symbol_freq),
-        symbol_bits(symbol_bits),
         channels(channels),
         real_symbol_samples(int(kSampleRate / symbol_freq)),
-        shift_samples(shift_samples),
-        symbol_samples(shift_samples + real_symbol_samples + shift_samples),
+        cp_samples(cp_samples),
+        symbol_samples(cp_samples + real_symbol_samples),
         symbol_time(1.0f / symbol_freq) {
-    LOG_INFO("OFDMOption: symbol_freq = {}, symbol_bits = {}, channels = {}",
-             symbol_freq, symbol_bits, fmt::join(channels, ", "));
-
-    if (symbol_bits != 1 && symbol_bits != 2 && symbol_bits != 3) {
-      throw std::runtime_error("symbol_bits must be 1, 2, or 3");
-    }
-    if (pow(2, symbol_bits) != channels.size()) {
-      throw std::runtime_error("channels size must be 2^symbol_bits");
-    }
+    LOG_INFO("OFDMOption: symbol_freq={}, channels={}, symbol_samples={}, cp_samples={}",
+             symbol_freq, fmt::join(channels, ", "), symbol_samples, cp_samples);
   }
-  OFDMOption() : OFDMOption(1000, 1, {3, 7}, 0) {}
+  OFDMOption()
+      : OFDMOption(1000, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, 12) {}
+
+  size_t phy_payload_size(size_t bin_payload_size) const {
+    if (bin_payload_size % channels.size() != 0) {
+      LOG_ERROR("Invalid bits size: {}", bin_payload_size);
+      throw std::runtime_error("Invalid bits size");
+    }
+    return bin_payload_size / channels.size() * symbol_samples;
+  }
 };
 
 struct SphyOption {
@@ -65,17 +62,20 @@ struct SphyOption {
   const size_t frame_gap_size;
   const size_t frame_size;
   const float magic_factor;
+  const OFDMOption ofdm_option;
 
   SphyOption(SaudioOption saudio_option,
              size_t bin_payload_size = 40,
              size_t frame_gap_size = 48,
-             float magic_factor = -1.0f)
+             float magic_factor = -1.0f,
+             OFDMOption ofdm_option = OFDMOption())
       : saudio_option(saudio_option),
         bin_payload_size(bin_payload_size),
-        phy_payload_size(bin_payload_size * PSK::symbol_len),
+        phy_payload_size(ofdm_option.phy_payload_size(bin_payload_size)),
         frame_gap_size(frame_gap_size),
         frame_size(Signal::CHIRP1_LEN + phy_payload_size + frame_gap_size),
-        magic_factor(magic_factor) {
+        magic_factor(magic_factor),
+        ofdm_option(ofdm_option) {
     LOG_INFO(
         "SphyOption: bin_payload_size = {}, phy_payload_size = {}, "
         "frame_gap_size = {}, frame_size = {}",

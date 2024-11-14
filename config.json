@@ -1,21 +1,18 @@
 {
     "saudio_option": {
-        "input_port": "UGREEN CM564 USB Audio  Mono",
-        "output_port": "USB2.0 Device Analog Stereo",
+        "input_port": "Audio Adapter (Unitek Y-247A) Mono",
+        "output_port": "Unitek Y-247A",
         "ringbuffer_size": 1280
     },
     "ofdm_option": {
-        "symbol_freq": 4000,
-        "symbol_bits": 1,
-        "channels": [
-            1,
-            2
-        ],
-        "shift_samples": 0
+        "symbol_freq": 1000,
+        "channels": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        "cp_samples": 0
     },
     "sphy_option": {
-        "bin_payload_size": 40,
-        "frame_gap_size": 48
+        "bin_payload_size": 384,
+        "frame_gap_size": 12,
+        "magic_factor": 1.0
     },
     "project1_option": {
         "payload_size": 10000

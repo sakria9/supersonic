@@ -55,34 +55,30 @@ Option load_option(std::string filename) {
       saudio_opt.ringbuffer_size = *ringbuffer_size;
     }
 
-    // auto ofdm_opt = [&]() {
-    //   auto ofdm_option = j.at("ofdm_option").as_object();
-    //   auto symbol_freq =
-    //       value_opt(ofdm_option, "symbol_freq").transform(to_int);
-    //   auto symbol_bits =
-    //       value_opt(ofdm_option, "symbol_bits").transform(to_int);
-    //   auto channels = value_opt(ofdm_option, "channels")
-    //                       .transform([](const boost::json::value& v) {
-    //                         std::vector<int> result;
-    //                         for (const auto& e : v.as_array()) {
-    //                           result.push_back((int)e.as_int64());
-    //                         }
-    //                         return result;
-    //                       });
-    //   auto shift_samples =
-    //       value_opt(ofdm_option, "shift_samples").transform(to_int);
-    //   if (symbol_freq || symbol_bits || channels || shift_samples) {
-    //     if (!(symbol_bits && channels && shift_samples)) {
-    //       throw std::runtime_error(
-    //           "symbol_freq, symbol_bits, channels, "
-    //           "shift_samples must be specified together");
-    //     }
-    //     return OFDMOption((float)*symbol_freq, (int)*symbol_bits, *channels,
-    //                       (int)*shift_samples);
-    //   } else {
-    //     return OFDMOption();
-    //   }
-    // }();
+    auto ofdm_opt = [&]() {
+      auto ofdm_option = j.at("ofdm_option").as_object();
+      auto symbol_freq =
+          value_opt(ofdm_option, "symbol_freq").transform(to_int);
+      auto channels = value_opt(ofdm_option, "channels")
+                          .transform([](const boost::json::value& v) {
+                            std::vector<int> result;
+                            for (const auto& e : v.as_array()) {
+                              result.push_back((int)e.as_int64());
+                            }
+                            return result;
+                          });
+      auto cp_samples = value_opt(ofdm_option, "cp_samples").transform(to_int);
+      if (symbol_freq || channels || cp_samples) {
+        if (!(symbol_freq && channels && cp_samples)) {
+          throw std::runtime_error(
+              "symbol_freq, channels, "
+              "cp_samples must be specified together");
+        }
+        return OFDMOption((float)*symbol_freq, *channels, (int)*cp_samples);
+      } else {
+        return OFDMOption();
+      }
+    }();
 
     auto sphy_opt = [&]() {
       auto sphy_option = j.at("sphy_option").as_object();
@@ -94,7 +90,7 @@ Option load_option(std::string filename) {
           value_opt(sphy_option, "magic_factor").transform(to_float);
       if (bin_payload_size || frame_gap_size) {
         return SphyOption(saudio_opt, *bin_payload_size, *frame_gap_size,
-                          *magic_factor);
+                          *magic_factor, ofdm_opt);
       } else {
         return SphyOption(saudio_opt);
       }

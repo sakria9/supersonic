@@ -19,7 +19,7 @@ namespace this_coro = boost::asio::this_coro;
 
 #include "chirp.h"
 #include "log.h"
-#include "psk.h"
+#include "ofdm.h"
 #include "supersonic.h"
 #include "utils.h"
 
@@ -38,7 +38,7 @@ class Sphy {
   // chirp
   const std::vector<float> chirp = Signal::generate_chirp1();
 
-  Sphy(Config::SphyOption opt) : opt_(opt) {
+  Sphy(Config::SphyOption opt) : opt_(opt), ofdm_(opt.ofdm_option) {
     LOG_INFO("chirp len {}", chirp.size());
   }
 
@@ -91,7 +91,7 @@ class Sphy {
 
     recv_frames.push_back(phy_payload);
 
-    auto raw_bits = PSK::demodulate(phy_payload);
+    auto raw_bits = ofdm_.demodulate(phy_payload);
 
     co_return raw_bits;
   }
@@ -126,7 +126,7 @@ class Sphy {
       co_return;
     }
 
-    auto wave = PSK::modulate(std::move((bits)));
+    auto wave = ofdm_.modulate(std::move((bits)));
     frames.push_back(wave);
 
     co_await send_frame(wave);
@@ -164,6 +164,8 @@ class Sphy {
   }
 
   awaitable<float> rx_pop() {
+    rx_samples_++;
+
     // fast path
     if (supersonic_->rx_buffer.read_available()) {
       float e;
@@ -224,7 +226,7 @@ class Sphy {
       auto max_idx = argmax(corr);
       if (max_idx == PREMABLE_PEEK_SIZE && corr[max_idx] > 0.1) {
         // preamble found
-        LOG_INFO("Preamble found with corr = {}", corr[max_idx]);
+        LOG_INFO("Preamble found with corr={}, idx={}", corr[max_idx], rx_samples_-PREMABLE_PEEK_SIZE);
         break;
       }
     }
@@ -245,6 +247,9 @@ class Sphy {
   Config::SphyOption opt_;
   std::unique_ptr<Saudio> supersonic_;
   std::unique_ptr<TxChannel> tx_channel_;
+  OFDM ofdm_;
+
+  size_t rx_samples_ = 0;
 };
 
 }  // namespace SuperSonic
