@@ -294,4 +294,24 @@ inline Bits uniform_dereorder(BitView reorderedBits) {
   return bits;
 }
 
+inline Bits int2Bits(int n, int size) {
+  Bits bits(size);
+  for (int i = 0; i < size; i++) {
+    bits[i] = static_cast<uint8_t>((n >> i) & 1);
+  }
+  return bits;
+}
+inline void int2Bits(int n, MutBitView bits) {
+  for (int i = 0; i < bits.size(); i++) {
+    bits[i] = static_cast<uint8_t>((n >> i) & 1);
+  }
+}
+inline int bits2Int(BitView bits) {
+  int n = 0;
+  for (size_t i = 0; i < bits.size(); i++) {
+    n |= bits[i] << i;
+  }
+  return n;
+}
+
 }  // namespace SuperSonic

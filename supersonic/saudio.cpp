@@ -1,8 +1,12 @@
+// #define USE_MA
+
+#ifdef USE_MA
 #define MINIAUDIO_IMPLEMENTATION
 #include <miniaudio.h>
+#endif
+
 #include <algorithm>
 #include <atomic>
-#include <iostream>
 #include <thread>
 #include <vector>
 
@@ -10,6 +14,15 @@
 
 namespace SuperSonic {
 
+int Saudio::run() {
+#ifdef USE_MA
+  return run_ma();
+#else
+  return run_jack();
+#endif
+}
+
+#ifdef USE_MA
 static void data_callback(ma_device* pDevice,
                           void* pOutput,
                           const void* pInput,
@@ -18,7 +31,7 @@ static void data_callback(ma_device* pDevice,
   saudio->process_callback(pInput, pOutput, frameCount);
 }
 
-int Saudio::run() {
+int Saudio::run_ma() {
   ma_result result;
 
   LOG_INFO("supersonic::run");
@@ -149,12 +162,162 @@ int Saudio::run() {
 
   return 0;
 }
+#endif
+
+#ifndef USE_MA
+int Saudio::jack_process_callback_handler(jack_nframes_t nframes, void* arg) {
+  auto saudio = reinterpret_cast<Saudio*>(arg);
+
+  auto rx = (jack_default_audio_sample_t*)jack_port_get_buffer(
+      saudio->input_port_, nframes);
+
+  auto tx = (jack_default_audio_sample_t*)jack_port_get_buffer(
+      saudio->output_port_, nframes);
+
+  saudio->process_callback(rx, tx, nframes);
+  return 0;
+}
+
+int Saudio::run_jack() {
+  jack_status_t status;
+
+  LOG_INFO("supersonic::run");
+
+  // create a new Jack client
+  if (opt_.client_name.size() > (size_t)jack_client_name_size()) {
+    LOG_ERROR("Client name is too long.");
+    throw std::runtime_error("Client name is too long.");
+  }
+  client_ = jack_client_open(opt_.client_name.c_str(), JackNullOption, &status);
+  if (client_ == nullptr) {
+    LOG_ERROR("jack_client_open failed, status = {}", (int)status);
+    throw std::runtime_error("jack_client_open failed.");
+  }
+
+  // List all playback ports
+  printf("Playback Ports:\n");
+  const char** playback_ports =
+      jack_get_ports(client_, NULL, NULL, JackPortIsOutput);
+  if (playback_ports) {
+    for (int i = 0; playback_ports[i] != NULL; i++) {
+      printf("  %s\n", playback_ports[i]);
+    }
+    jack_free(playback_ports);
+  } else {
+    printf("No playback ports found.\n");
+  }
+
+  // List all capture ports
+  printf("\nCapture Ports:\n");
+  const char** capture_ports =
+      jack_get_ports(client_, NULL, NULL, JackPortIsInput);
+  if (capture_ports) {
+    for (int i = 0; capture_ports[i] != NULL; i++) {
+      printf("  %s\n", capture_ports[i]);
+    }
+    jack_free(capture_ports);
+  } else {
+    printf("No capture ports found.\n");
+  }
+
+  // register input and output ports
+  input_port_ = jack_port_register(client_, "input", JACK_DEFAULT_AUDIO_TYPE,
+                                   JackPortIsInput, 0);
+  if (input_port_ == nullptr) {
+    LOG_ERROR("jack_port_register failed.");
+    throw std::runtime_error("jack_port_register failed.");
+  }
+  output_port_ = jack_port_register(client_, "output", JACK_DEFAULT_AUDIO_TYPE,
+                                    JackPortIsOutput, 0);
+  if (output_port_ == nullptr) {
+    LOG_ERROR("jack_port_register failed.");
+    throw std::runtime_error("jack_port_register failed.");
+  }
+
+  // register a process callback
+  jack_set_process_callback(client_, jack_process_callback_handler, this);
+
+  if (opt_.enable_raw_log) {
+    log_thread = std::jthread([this]() {
+      while (!stop_log_thread.test()) {
+        log_rx_buffer.consume_one(
+            [&](float e) { log_rx_buffer_data.push_back(e); });
+        log_tx_buffer.consume_one(
+            [&](float e) { log_tx_buffer_data.push_back(e); });
+      }
+    });
+  }
+
+  // activate the client
+  if (jack_activate(client_)) {
+    LOG_ERROR("jack_activate failed.");
+    return 1;
+  }
+
+  // bind input_port to system:capture_1
+  if (opt_.input_port.index() != 0) {
+    LOG_ERROR("Invalid input_port.");
+    throw std::runtime_error("Invalid input_port.");
+  }
+  auto capture = std::get<0>(opt_.input_port);
+  if (jack_connect(client_, capture.c_str(), jack_port_name(input_port_))) {
+    LOG_ERROR("jack_connect failed.");
+    throw std::runtime_error("jack_connect failed.");
+  }
+
+  // bind output_port to system:playback_1
+  if (opt_.output_port.index() != 0) {
+    LOG_ERROR("Invalid output_port.");
+    throw std::runtime_error("Invalid output_port.");
+  }
+  auto playback = std::get<0>(opt_.output_port);
+  if (jack_connect(client_, jack_port_name(output_port_), playback.c_str())) {
+    LOG_ERROR("jack_connect failed.");
+    throw std::runtime_error("jack_connect failed.");
+  }
+
+  return 0;
+}
+#endif
 
 Saudio::~Saudio() {
+#ifdef USE_MA
   if (device) {
     ma_device_uninit((ma_device*)device);
     delete (ma_device*)device;
   }
+#endif
+
+#ifndef USE_MA
+  if (client_) {
+    int rc;
+    // deactivate the client
+    rc = jack_deactivate(client_);
+    if (rc) {
+      LOG_ERROR("jack_deactivate failed, rc = {}", rc);
+    }
+
+    // unregister the port
+    if (input_port_) {
+      rc = jack_port_unregister(client_, input_port_);
+      if (rc) {
+        LOG_ERROR("jack_port_unregister failed, rc = {}", rc);
+      }
+    }
+    if (output_port_) {
+      rc = jack_port_unregister(client_, output_port_);
+      if (rc) {
+        LOG_ERROR("jack_port_unregister failed, rc = {}", rc);
+      }
+    }
+
+    // close the client
+    rc = jack_client_close(client_);
+    if (rc) {
+      LOG_ERROR("jack_client_close failed, rc = {}", rc);
+    }
+  }
+#endif
 
   if (opt_.enable_raw_log) {
     stop_log_thread.test_and_set();
@@ -172,10 +335,7 @@ void Saudio::process_callback(const void* pInput,
   auto tx = (float*)pOutput;
 
   if (rx_buffer.write_available() < frameCount) {
-    if (warned_rx_buffer_ == false) {
-      LOG_WARN("Rx buffer is full. Going to reset RX buffer.");
-      warned_rx_buffer_ = true;
-    }
+    LOG_WARN("Rx buffer is full. Going to reset RX buffer.");
     rx_buffer.consume_all([](float) {});
   }
   auto pushed = rx_buffer.push(rx, frameCount);

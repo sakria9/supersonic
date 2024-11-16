@@ -40,47 +40,46 @@ struct OFDMOption {
         cp_samples(cp_samples),
         symbol_samples(cp_samples + real_symbol_samples),
         symbol_time(1.0f / symbol_freq) {
-    LOG_INFO("OFDMOption: symbol_freq={}, channels={}, symbol_samples={}, cp_samples={}",
-             symbol_freq, fmt::join(channels, ", "), symbol_samples, cp_samples);
+    LOG_INFO(
+        "OFDMOption: symbol_freq={}, channels={}, symbol_samples={}, "
+        "cp_samples={}",
+        symbol_freq, fmt::join(channels, ", "), symbol_samples, cp_samples);
   }
   OFDMOption()
       : OFDMOption(1000, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, 12) {}
 
   size_t phy_payload_size(size_t bin_payload_size) const {
-    if (bin_payload_size % channels.size() != 0) {
-      LOG_ERROR("Invalid bits size: {}", bin_payload_size);
-      throw std::runtime_error("Invalid bits size");
-    }
-    return bin_payload_size / channels.size() * symbol_samples;
+    return (bin_payload_size + channels.size() - 1) / channels.size() *
+           symbol_samples;
   }
 };
 
 struct SphyOption {
   SaudioOption saudio_option;
   const size_t bin_payload_size;
-  const size_t phy_payload_size;
   const size_t frame_gap_size;
-  const size_t frame_size;
   const float magic_factor;
+  const float preamble_threshold;
   const OFDMOption ofdm_option;
 
   SphyOption(SaudioOption saudio_option,
              size_t bin_payload_size = 40,
              size_t frame_gap_size = 48,
              float magic_factor = -1.0f,
+             float preamble_threshold = 0.1f,
              OFDMOption ofdm_option = OFDMOption())
       : saudio_option(saudio_option),
         bin_payload_size(bin_payload_size),
-        phy_payload_size(ofdm_option.phy_payload_size(bin_payload_size)),
         frame_gap_size(frame_gap_size),
-        frame_size(Signal::CHIRP1_LEN + phy_payload_size + frame_gap_size),
         magic_factor(magic_factor),
-        ofdm_option(ofdm_option) {
-    LOG_INFO(
-        "SphyOption: bin_payload_size = {}, phy_payload_size = {}, "
-        "frame_gap_size = {}, frame_size = {}",
-        bin_payload_size, phy_payload_size, frame_gap_size, frame_size);
-  }
+        preamble_threshold(preamble_threshold),
+        ofdm_option(ofdm_option) {}
+};
+
+struct SmacOption {
+  uint8_t mac_addr;
+  int timeout_ms;
+  int max_retries;
 };
 
 struct Project1Option {
@@ -89,6 +88,7 @@ struct Project1Option {
 
 struct Option {
   SphyOption sphy_option;
+  SmacOption smac_option;
   Project1Option project1_option;
 };
 

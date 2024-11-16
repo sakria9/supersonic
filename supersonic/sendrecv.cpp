@@ -1,6 +1,9 @@
 #include <boost/asio/experimental/awaitable_operators.hpp>
 #include <cxxopts.hpp>
 
+// to customize phy.h
+#define sendrecv
+
 #include "phy.h"
 #include "rs.h"
 #include "supersonic.h"
@@ -25,7 +28,7 @@ awaitable<void> async_send(SuperSonic::Sphy& phy) {
 
   std::ofstream ofs("input.txt");
   for (size_t i = 0; i < rounds; i++) {
-    Bits bits(phy.opt_.bin_payload_size);
+    Bits bits(768);
     for (size_t i = 0; i < bits.size(); i++) {
       bits[i] = rand() % 2;
       ofs << (int)bits[i];

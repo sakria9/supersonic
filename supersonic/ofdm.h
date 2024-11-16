@@ -28,7 +28,7 @@ class OFDM {
   inline Samples modulate(Bits bits) {
     if (bits.size() % opt.channels.size() != 0) {
       LOG_ERROR("Invalid bits size: {}", bits.size());
-      return {};
+      throw std::runtime_error("Invalid bits size");
     }
 
     auto cfg = kiss_fft_alloc(opt.real_symbol_samples, 1, 0, 0);
@@ -78,7 +78,7 @@ class OFDM {
   inline Bits demodulate(SampleView wave) {
     if (wave.size() % opt.symbol_samples != 0) {
       LOG_ERROR("Invalid wave size: {}", wave.size());
-      return {};
+      throw std::runtime_error("Invalid wave size");
     }
 
     auto cfg = kiss_fft_alloc(opt.real_symbol_samples, 0, 0, 0);

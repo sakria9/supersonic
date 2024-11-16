@@ -36,25 +36,39 @@ Option load_option(std::string filename) {
       return static_cast<float>(v.as_double());
     };
 
+    // Saudio
     SaudioOption saudio_opt;
 
     auto saudio_option = j.at("saudio_option").as_object();
+
     auto input_port =
         value_opt(saudio_option, "input_port").transform(to_string);
     auto output_port =
         value_opt(saudio_option, "output_port").transform(to_string);
-    auto ringbuffer_size =
-        value_opt(saudio_option, "ringbuffer_size").transform(to_int);
     if (input_port) {
       saudio_opt.input_port = *input_port;
     }
     if (output_port) {
       saudio_opt.output_port = *output_port;
     }
+
+    auto input_idx = value_opt(saudio_option, "input_idx").transform(to_int);
+    auto output_idx = value_opt(saudio_option, "output_idx").transform(to_int);
+    if (input_idx) {
+      saudio_opt.input_port = int(*input_idx);
+    }
+    if (output_idx) {
+      saudio_opt.output_port = int(*output_idx);
+    }
+
+    auto ringbuffer_size =
+        value_opt(saudio_option, "ringbuffer_size").transform(to_int);
+
     if (ringbuffer_size) {
       saudio_opt.ringbuffer_size = *ringbuffer_size;
     }
 
+    // OFDM
     auto ofdm_opt = [&]() {
       auto ofdm_option = j.at("ofdm_option").as_object();
       auto symbol_freq =
@@ -80,6 +94,7 @@ Option load_option(std::string filename) {
       }
     }();
 
+    // Sphy
     auto sphy_opt = [&]() {
       auto sphy_option = j.at("sphy_option").as_object();
       auto bin_payload_size =
@@ -88,14 +103,42 @@ Option load_option(std::string filename) {
           value_opt(sphy_option, "frame_gap_size").transform(to_int);
       auto magic_factor =
           value_opt(sphy_option, "magic_factor").transform(to_float);
+      auto preamble_threshold =
+          value_opt(sphy_option, "preamble_threshold").transform(to_float);
       if (bin_payload_size || frame_gap_size) {
         return SphyOption(saudio_opt, *bin_payload_size, *frame_gap_size,
-                          *magic_factor, ofdm_opt);
+                          *magic_factor, *preamble_threshold, ofdm_opt);
       } else {
         return SphyOption(saudio_opt);
       }
     }();
 
+    // Smac
+    auto smac_opt = [&]() -> SmacOption {
+      SmacOption result;
+      if (j.as_object().contains("smac_option")) {
+        auto smac_option = j.at("smac_option").as_object();
+        auto mac_addr = value_opt(smac_option, "mac_addr").transform(to_int);
+        if (mac_addr) {
+          result.mac_addr = static_cast<uint8_t>(*mac_addr);
+        } else {
+          throw std::runtime_error("mac_addr must be specified");
+        }
+        auto timeout_ms = value_opt(smac_option, "timeout_ms")
+                              .transform(to_int)
+                              .value_or(200);
+        auto max_retries = value_opt(smac_option, "max_retries")
+                               .transform(to_int)
+                               .value_or(20);
+        result.timeout_ms = timeout_ms;
+        result.max_retries = max_retries;
+        return result;
+      } else {
+        return {};
+      }
+    }();
+
+    // Project1
     auto project1_opt = [&]() {
       auto project1_option = j.at("project1_option").as_object();
       auto payload_size =
@@ -109,6 +152,7 @@ Option load_option(std::string filename) {
 
     return {
         .sphy_option = sphy_opt,
+        .smac_option = smac_opt,
         .project1_option = project1_opt,
     };
   } catch (const std::exception& e) {

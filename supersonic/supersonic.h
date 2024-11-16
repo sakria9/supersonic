@@ -4,7 +4,6 @@
 #include <boost/lockfree/spsc_queue.hpp>
 
 #include "config.h"
-#include "log.h"
 #include "utils.h"
 
 namespace SuperSonic {
@@ -36,6 +35,8 @@ class Saudio {
         rx_buffer(opt.ringbuffer_size),
         tx_buffer(opt.ringbuffer_size) {}
 
+  int run_jack();
+  int run_ma();
   int run();
 
   ~Saudio();
@@ -45,6 +46,7 @@ class Saudio {
 
   jack_client_t* client_ = nullptr;
   jack_port_t *input_port_ = nullptr, *output_port_ = nullptr;
+  static int jack_process_callback_handler(jack_nframes_t nframes, void* arg);
 
   RingBuffer log_rx_buffer{kSampleRate * 10};
   RingBuffer log_tx_buffer{kSampleRate * 10};
@@ -52,8 +54,6 @@ class Saudio {
   std::vector<float> log_tx_buffer_data;
   std::jthread log_thread;
   std::atomic_flag stop_log_thread = ATOMIC_FLAG_INIT;
-
-  bool warned_rx_buffer_ = false;
 
   void* device;
 

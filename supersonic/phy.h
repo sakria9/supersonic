@@ -1,3 +1,5 @@
+#pragma once
+
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/experimental/channel.hpp>
@@ -34,13 +36,16 @@ class Sphy {
   static constexpr auto TIMEOUT = std::chrono::seconds(1);
 
   // buffer
-  static constexpr size_t TX_BUFFER_SIZE = 100;
+  static constexpr size_t TX_BUFFER_SIZE = 0;
   // chirp
   const std::vector<float> chirp = Signal::generate_chirp1();
 
   Sphy(Config::SphyOption opt) : opt_(opt), ofdm_(opt.ofdm_option) {
     LOG_INFO("chirp len {}", chirp.size());
   }
+
+  static constexpr size_t max_payload_size = 812;
+  // Phy frame: chirp + len + payload + gap
 
   std::vector<Samples> frames;
   std::vector<Samples> recv_frames;
@@ -86,12 +91,41 @@ class Sphy {
   using TxChannel =
       boost::asio::experimental::channel<void(boost::system::error_code, Bits)>;
 
+  static constexpr int len_samples = 2;
+
   awaitable<Bits> rx() {
     auto phy_payload = co_await receive_frame();
 
     recv_frames.push_back(phy_payload);
 
-    auto raw_bits = ofdm_.demodulate(phy_payload);
+    auto len_size = len_samples * opt_.ofdm_option.symbol_samples;
+    auto len_wave =
+        SampleView{phy_payload.begin(), phy_payload.begin() + len_size};
+    auto payload_wave =
+        SampleView{phy_payload.begin() + len_size, phy_payload.end()};
+
+    auto len_bits = ofdm_.demodulate(len_wave);
+    auto len = bits2Int(len_bits);
+
+    if (!(1 <= len && len <= max_payload_size)) {
+#ifdef sendrecv
+      co_return Bits{};
+#endif
+      LOG_ERROR(
+          "Invalid len: {}. This should not happen, the program is in a bad "
+          "state",
+          len);
+      throw std::runtime_error("Invalid len");
+    }
+
+    auto raw_bits = ofdm_.demodulate(payload_wave);
+    raw_bits.resize(len);
+
+    // LOG_INFO("Received {} bits", raw_bits.size());
+    // for (size_t i = 0; i < raw_bits.size(); i++) {
+    //   printf("%d", raw_bits[i]);
+    // }
+    // printf("\n");
 
     co_return raw_bits;
   }
@@ -99,21 +133,52 @@ class Sphy {
   awaitable<void> tx(Bits bits) {
     if (tx_channel_ == nullptr) {
       LOG_ERROR("Tx channel not initialized. This should not happen.");
+      throw std::runtime_error("Tx channel not initialized");
       co_return;
     }
+    if (!(1 <= bits.size() && bits.size() <= max_payload_size)) {
+      LOG_ERROR("Invalid bits size: {}", bits.size());
+      throw std::runtime_error("Invalid bits size");
+    }
+
+    // LOG_INFO("Sending {} bits", bits.size());
+    // for (size_t i = 0; i < bits.size(); i++) {
+    //   printf("%d", bits[i]);
+    // }
+    // printf("\n");
+
     co_await tx_channel_->async_send({}, std::move(bits));
+  }
+
+  awaitable<void> tx_finish() {
+    std::atomic_flag completed = ATOMIC_FLAG_INIT;
+    supersonic_->tx_buffer.push({{}, &completed});
+
+    static constexpr int spin_interval = 2;
+
+    while (1) {
+      if (completed.test()) {
+        break;
+      }
+      steady_timer timer(co_await this_coro::executor);
+      timer.expires_after(std::chrono::milliseconds(spin_interval));
+      co_await timer.async_wait(use_awaitable);
+    }
   }
 
   awaitable<void> tx(BitView bits) {
     co_await tx(Bits{bits.begin(), bits.end()});
   }
 
+  // called by init
   awaitable<void> async_main() {
     // handling tx
     if (!tx_channel_) {
       LOG_ERROR("Tx channel not initialized. This should not happen.");
+      throw std::runtime_error("Tx channel not initialized");
       co_return;
     }
+    LOG_INFO("Sphy async_main started");
     while (1) {
       auto bits = co_await tx_channel_->async_receive(use_awaitable);
       co_await send_bits(std::move(bits));
@@ -121,12 +186,26 @@ class Sphy {
   }
 
   awaitable<void> send_bits(Bits bits) {
-    if (bits.size() != opt_.bin_payload_size) {
+    auto raw_bit_len = bits.size();
+
+    auto bits_per_symbol = opt_.ofdm_option.channels.size();
+    bits.resize((bits.size() + bits_per_symbol - 1) / bits_per_symbol *
+                bits_per_symbol);
+    if (bits.size() > max_payload_size) {
       LOG_ERROR("Invalid bits size: {}", bits.size());
       co_return;
     }
 
-    auto wave = ofdm_.modulate(std::move((bits)));
+    auto len_wave =
+        ofdm_.modulate(int2Bits(raw_bit_len, len_samples * bits_per_symbol));
+    auto payload_wave = ofdm_.modulate(std::move((bits)));
+    auto wave = Signal::concatenate(len_wave, payload_wave);
+
+    if (wave.size() < 64) {
+      LOG_ERROR("Wave size too small: {}", wave.size());
+      throw std::runtime_error("Wave size too small");
+    }
+
     frames.push_back(wave);
 
     co_await send_frame(wave);
@@ -198,18 +277,7 @@ class Sphy {
       std::copy(arr.begin() + 1, arr.end(), arr.begin());
     };
     auto calc_preamble_corr = [&]() {
-      auto& wave = preamble;
-      auto max = maxv(absv(wave));
-      if (max < 1e-6) {
-        return 0.0f;
-      }
-
-      auto wave_norm = wave;
-      for (auto& e : wave_norm) {
-        e /= max;
-      }
-
-      auto correlation = dot(wave_norm, chirp) / (float)chirp_len;
+      auto correlation = dot(preamble, chirp) / (float)chirp_len;
       return correlation;
     };
 
@@ -224,21 +292,48 @@ class Sphy {
       float e = co_await rx_pop();
       add_one(e);
       auto max_idx = argmax(corr);
-      if (max_idx == PREMABLE_PEEK_SIZE && corr[max_idx] > 0.1) {
+      if (corr[max_idx] > max_preamble_corr) {
+        max_preamble_corr = corr[max_idx];
+        LOG_INFO("Max preamble corr: {}", max_preamble_corr);
+      }
+      if (max_idx == PREMABLE_PEEK_SIZE &&
+          corr[max_idx] > opt_.preamble_threshold) {
         // preamble found
-        LOG_INFO("Preamble found with corr={}, idx={}", corr[max_idx], rx_samples_-PREMABLE_PEEK_SIZE);
+        LOG_INFO("Preamble found with corr={}", corr[max_idx]);
         break;
       }
     }
 
-    auto phy_payload = zeros(opt_.phy_payload_size);
     std::span<float> peek_wave{preamble.data() + chirp_len - PREMABLE_PEEK_SIZE,
                                PREMABLE_PEEK_SIZE};
-    // copy to phy_payload
-    std::copy(peek_wave.begin(), peek_wave.end(), phy_payload.begin());
-    auto to_read = opt_.phy_payload_size - PREMABLE_PEEK_SIZE;
+    Samples phy_payload{peek_wave.begin(), peek_wave.end()};
+
+    // read till len
+    auto sample_size = opt_.ofdm_option.symbol_samples;
+    auto len_size = len_samples * sample_size;
+    if (phy_payload.size() < len_size) {
+      auto to_read = len_size - phy_payload.size();
+      for (size_t i = 0; i < to_read; i++) {
+        phy_payload.push_back(co_await rx_pop());
+      }
+    }
+
+    auto len_wave =
+        SampleView{phy_payload.begin(), phy_payload.begin() + len_size};
+    auto len_bits = ofdm_.demodulate(len_wave);
+    auto len = bits2Int(len_bits);
+    if (!(1 <= len && len <= max_payload_size)) {
+      LOG_WARN("Invalid len: {}, corrupted frame", len);
+      len = 1;
+#ifndef sendrecv
+      co_return (co_await receive_frame());
+#endif
+    }
+
+    auto frame_total_size = len_size + opt_.ofdm_option.phy_payload_size(len);
+    auto to_read = frame_total_size - phy_payload.size();
     for (size_t i = 0; i < to_read; i++) {
-      phy_payload[PREMABLE_PEEK_SIZE + i] = co_await rx_pop();
+      phy_payload.push_back(co_await rx_pop());
     }
 
     co_return phy_payload;
@@ -250,6 +345,7 @@ class Sphy {
   OFDM ofdm_;
 
   size_t rx_samples_ = 0;
+  float max_preamble_corr = 0.0f;
 };
 
 }  // namespace SuperSonic
