@@ -3,8 +3,6 @@
 
 #include "mac.h"
 #include "phy.h"
-#include "rs.h"
-#include "supersonic.h"
 #include "utils.h"
 
 awaitable<void> expiry(int seconds) {
@@ -16,20 +14,18 @@ awaitable<void> expiry(int seconds) {
 awaitable<void> async_main(boost::asio::io_context& ctx,
                            SuperSonic::Sphy& phy,
                            SuperSonic::Smac& mac,
-                           SuperSonic::Config::Option& option,
-                           int task) {
+                           SuperSonic::Config::Option& option) {
   co_await phy.init();
 
   auto ex = co_await this_coro::executor;
   co_spawn(ex, mac.run(), detached);
 
-  if (task == 1) {
+  if (option.project2_option.task == 1) {
     auto start_ts = std::chrono::high_resolution_clock::now();
     constexpr int rounds = 100;
-    constexpr int payload_size = 768;
     std::vector<double> frame_times;
     for (int i = 0; i < rounds; i++) {
-      SuperSonic::Bits bits(payload_size);
+      SuperSonic::Bits bits(option.project2_option.payload_size);
       LOG_INFO("Kicked frame {}", i);
 
       auto start = std::chrono::high_resolution_clock::now();
@@ -46,13 +42,12 @@ awaitable<void> async_main(boost::asio::io_context& ctx,
             .count() /
         1000.0;
     LOG_INFO("Sent {} frames in {} s, {} bps", rounds, sec_float,
-             (rounds * payload_size) / sec_float);
+             (rounds * option.project2_option.payload_size) / sec_float);
 
     // print frame times in one line using fmt
     LOG_INFO("Frame times: {}", fmt::join(frame_times, " "));
-
-    ctx.stop();
-  } else if (task == 2) {
+  } else if (option.project2_option.task == 2) {
+    LOG_INFO("RX only mode");
   }
 }
 
@@ -61,18 +56,15 @@ int main(int argc, char** argv) {
   // clang-format off
   options.add_options()
     ("h,help", "Print usage")
-    ("t,task", "Task to run", cxxopts::value<int>(), "1: Send, 2: Receive")
     ("c,config", "Config file", cxxopts::value<std::string>())
   ;
   // clang-format on
   auto result = options.parse(argc, argv);
 
-  if (result.count("help") || result.count("task") == 0 ||
-      result.count("config") == 0) {
+  if (result.count("help") || result.count("config") == 0) {
     std::cout << options.help() << std::endl;
     return 0;
   }
-  auto task = result["task"].as<int>();
 
   auto config_file = result["config"].as<std::string>();
   auto option = SuperSonic::Config::load_option(config_file);
@@ -86,8 +78,7 @@ int main(int argc, char** argv) {
     boost::asio::signal_set signals(io_context, SIGINT, SIGTERM);
     signals.async_wait([&](auto, auto) { io_context.stop(); });
 
-    co_spawn(io_context, async_main(io_context, phy, mac, option, task),
-             detached);
+    co_spawn(io_context, async_main(io_context, phy, mac, option), detached);
 
     io_context.run();
   } catch (std::exception& e) {

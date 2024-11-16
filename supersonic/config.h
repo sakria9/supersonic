@@ -79,17 +79,26 @@ struct SphyOption {
 struct SmacOption {
   uint8_t mac_addr;
   int timeout_ms;
+  int backoff_ms;
   int max_retries;
+  float busy_power_threshold;
 };
 
 struct Project1Option {
   size_t payload_size;
 };
 
+struct Project2Option {
+  int task;
+  size_t payload_size;
+};
+
+
 struct Option {
   SphyOption sphy_option;
   SmacOption smac_option;
   Project1Option project1_option;
+  Project2Option project2_option;
 };
 
 Option load_option(std::string filename);

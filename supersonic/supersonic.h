@@ -1,6 +1,7 @@
 #pragma once
 
 #include <jack/jack.h>
+#include <atomic>
 #include <boost/lockfree/spsc_queue.hpp>
 
 #include "config.h"
@@ -44,9 +45,13 @@ class Saudio {
  private:
   Config::SaudioOption opt_;
 
+  // Jack
   jack_client_t* client_ = nullptr;
   jack_port_t *input_port_ = nullptr, *output_port_ = nullptr;
   static int jack_process_callback_handler(jack_nframes_t nframes, void* arg);
+
+  // MA
+  void* device;
 
   RingBuffer log_rx_buffer{kSampleRate * 10};
   RingBuffer log_tx_buffer{kSampleRate * 10};
@@ -55,11 +60,13 @@ class Saudio {
   std::jthread log_thread;
   std::atomic_flag stop_log_thread = ATOMIC_FLAG_INIT;
 
-  void* device;
+  std::atomic<float> rx_power_;
 
  public:
   RxRingBuffer rx_buffer;
   TxRingBuffer tx_buffer;
+
+  float rx_power() { return rx_power_.load(std::memory_order_relaxed); }
 
  public:
   // this is called in audio thread

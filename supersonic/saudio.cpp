@@ -334,6 +334,13 @@ void Saudio::process_callback(const void* pInput,
   auto rx = (const float*)pInput;
   auto tx = (float*)pOutput;
 
+  float rx_energy = 0.0f;
+  for (uint32_t i = 0; i < frameCount; i++) {
+    rx_energy += rx[i] * rx[i];
+  }
+  float rx_power = rx_energy / frameCount;
+  rx_power_.store(rx_power, std::memory_order_relaxed);
+
   if (rx_buffer.write_available() < frameCount) {
     LOG_WARN("Rx buffer is full. Going to reset RX buffer.");
     rx_buffer.consume_all([](float) {});

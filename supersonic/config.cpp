@@ -130,8 +130,17 @@ Option load_option(std::string filename) {
         auto max_retries = value_opt(smac_option, "max_retries")
                                .transform(to_int)
                                .value_or(20);
+        auto busy_power_threshold =
+            value_opt(smac_option, "busy_power_threshold")
+                .transform(to_float)
+                .value_or(1e-4);
+        auto backoff_ms = value_opt(smac_option, "backoff_ms")
+                              .transform(to_int)
+                              .value_or(100);
         result.timeout_ms = timeout_ms;
         result.max_retries = max_retries;
+        result.busy_power_threshold = busy_power_threshold;
+        result.backoff_ms = backoff_ms;
         return result;
       } else {
         return {};
@@ -150,10 +159,28 @@ Option load_option(std::string filename) {
       }
     }();
 
+    // Project2
+    auto project2_opt = [&]() {
+      if (!j.as_object().contains("project2_option")) {
+        return Project2Option{-1, 0};
+      }
+
+      auto project2_option = j.at("project2_option").as_object();
+      auto task = value_opt(project2_option, "task").transform(to_int);
+      auto payload_size =
+          value_opt(project2_option, "payload_size").transform(to_int);
+      if (task && payload_size) {
+        return Project2Option{int(*task), static_cast<size_t>(*payload_size)};
+      } else {
+        throw std::runtime_error("payload_size must be specified");
+      }
+    }();
+
     return {
         .sphy_option = sphy_opt,
         .smac_option = smac_opt,
         .project1_option = project1_opt,
+        .project2_option = project2_opt,
     };
   } catch (const std::exception& e) {
     LOG_ERROR("Failed to load option: {}", e.what());

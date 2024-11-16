@@ -31,7 +31,6 @@ class Sphy {
  public:
   // interval and timieout
   static constexpr auto PUSH_INTERVAL = std::chrono::milliseconds(1);
-  static constexpr auto POLL_INTERVAL = std::chrono::milliseconds(10);
   static constexpr auto RX_POLL_INTERVAL = std::chrono::milliseconds(0);
   static constexpr auto TIMEOUT = std::chrono::seconds(1);
 
@@ -91,7 +90,7 @@ class Sphy {
   using TxChannel =
       boost::asio::experimental::channel<void(boost::system::error_code, Bits)>;
 
-  static constexpr int len_samples = 2;
+  static constexpr int len_samples = 1;
 
   awaitable<Bits> rx() {
     auto phy_payload = co_await receive_frame();
@@ -108,20 +107,13 @@ class Sphy {
     auto len = bits2Int(len_bits);
 
     if (!(1 <= len && len <= max_payload_size)) {
-#ifdef sendrecv
       co_return Bits{};
-#endif
-      LOG_ERROR(
-          "Invalid len: {}. This should not happen, the program is in a bad "
-          "state",
-          len);
-      throw std::runtime_error("Invalid len");
     }
 
     auto raw_bits = ofdm_.demodulate(payload_wave);
     raw_bits.resize(len);
 
-    // LOG_INFO("Received {} bits", raw_bits.size());
+    LOG_INFO("Sphy Received {} bits", raw_bits.size());
     // for (size_t i = 0; i < raw_bits.size(); i++) {
     //   printf("%d", raw_bits[i]);
     // }
@@ -299,7 +291,7 @@ class Sphy {
       if (max_idx == PREMABLE_PEEK_SIZE &&
           corr[max_idx] > opt_.preamble_threshold) {
         // preamble found
-        LOG_INFO("Preamble found with corr={}", corr[max_idx]);
+        // LOG_INFO("Preamble found with corr={}", corr[max_idx]);
         break;
       }
     }
@@ -325,9 +317,6 @@ class Sphy {
     if (!(1 <= len && len <= max_payload_size)) {
       LOG_WARN("Invalid len: {}, corrupted frame", len);
       len = 1;
-#ifndef sendrecv
-      co_return (co_await receive_frame());
-#endif
     }
 
     auto frame_total_size = len_size + opt_.ofdm_option.phy_payload_size(len);
