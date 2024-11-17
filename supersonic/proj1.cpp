@@ -101,6 +101,10 @@ awaitable<void> async_recv(boost::asio::io_context& ctx,
     }
 
     auto& phy_frame = std::get<0>(frame);
+    if (phy_frame.size() != phy.opt_.bin_payload_size) {
+      LOG_ERROR("Invalid frame size");
+      phy_frame.resize(phy.opt_.bin_payload_size);
+    }
     bits.insert(bits.end(), phy_frame.begin(), phy_frame.end());
   }
   auto end = std::chrono::high_resolution_clock::now();
