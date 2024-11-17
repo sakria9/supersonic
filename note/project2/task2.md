@@ -27,14 +27,16 @@ Node 0 config
         "mac_addr": 0,
         "timeout_ms": 250,
         "busy_power_threshold": 1.0,
-        "backoff_ms": 400
+        "backoff_ms": 400,
+        "max_retries": 8
     },
     "project1_option": {
         "payload_size": 10000
     },
     "project2_option": {
         "task": 1,
-        "payload_size": 2000
+        "payload_size": 2000,
+        "bin_size": 50000
     }
 }
 ```
@@ -62,16 +64,18 @@ Node 1 config
     },
     "smac_option": {
         "mac_addr": 1,
-        "timeout_ms": 200,
-        "busy_power_threshold": 0.01,
-        "backoff_ms": 400
+        "timeout_ms": 250,
+        "busy_power_threshold": 1.0,
+        "backoff_ms": 400,
+        "max_retries": 8
     },
     "project1_option": {
         "payload_size": 10000
     },
     "project2_option": {
         "task": 2,
-        "payload_size": 2000
+        "payload_size": 2000,
+        "bin_size": 50000
     }
 }
 ```
