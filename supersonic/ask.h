@@ -8,8 +8,8 @@ namespace SuperSonic {
 class ASK : public Modulator {
  public:
   static constexpr size_t symbol_len = 2;
-  static constexpr std::array<int, symbol_len> one{0, 1};
-  static constexpr std::array<int, symbol_len> zero{0, -1};
+  static constexpr std::array<float, symbol_len> one{0, 1};
+  static constexpr std::array<float, symbol_len> zero{0, -1};
 
   size_t symbol_samples() const override { return symbol_len; }
   size_t bits_per_symbol() const override { return 1; }

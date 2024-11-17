@@ -11,10 +11,10 @@ class PSK {
   // static constexpr std::array<int, symbol_len> zero{-1, 1};
 
   static constexpr size_t symbol_len = 4;
-  static constexpr std::array<int, symbol_len> one{1, -1, 1, -1};
-  static constexpr std::array<int, symbol_len> zero{-1, 1, -1, 1};
+  const std::array<int, symbol_len> one{1, -1, 1, -1};
+  const std::array<int, symbol_len> zero{-1, 1, -1, 1};
 
-  static inline Samples modulate(Bits raw_bits) {
+  Samples modulate(Bits raw_bits) {
     Samples wave(raw_bits.size() * symbol_len);
     for (size_t i = 0; i < raw_bits.size(); i++) {
       if (raw_bits[i]) {
@@ -30,7 +30,7 @@ class PSK {
     return wave;
   }
 
-  static inline Bits demodulate(SampleView wave) {
+  Bits demodulate(SampleView wave) {
     using SuperSonic::Signal::dot;
     if (wave.size() % symbol_len != 0) {
       LOG_ERROR("Invalid wave size: {}", wave.size());

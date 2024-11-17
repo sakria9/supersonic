@@ -1,4 +1,4 @@
-// #define USE_MA
+#define USE_MA
 
 #ifdef USE_MA
 #define MINIAUDIO_IMPLEMENTATION

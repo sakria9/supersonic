@@ -105,6 +105,13 @@ class Sphy {
     auto payload_wave =
         SampleView{phy_payload.begin() + len_size, phy_payload.end()};
 
+    float payload_wave_energy = 0.0f;
+    for (size_t i = 0; i < payload_wave.size(); i++) {
+      payload_wave_energy += payload_wave[i] * payload_wave[i];
+    }
+    float payload_wave_power = payload_wave_energy / payload_wave.size();
+    LOG_INFO("Payload wave power: {}", payload_wave_power);
+
     auto len_bits = modulator_->demodulate(len_wave);
     auto len = bits2Int(len_bits);
 
@@ -290,7 +297,7 @@ class Sphy {
       auto max_idx = argmax(corr);
       if (corr[max_idx] > max_preamble_corr) {
         max_preamble_corr = corr[max_idx];
-        // LOG_INFO("Max preamble corr: {}", max_preamble_corr);
+        LOG_INFO("Max preamble corr: {}", max_preamble_corr);
       }
       if (max_idx == PREMABLE_PEEK_SIZE &&
           corr[max_idx] > opt_.preamble_threshold) {
@@ -337,7 +344,7 @@ class Sphy {
   OFDM ofdm_;
   ASK ask_;
 
-  Modulator* modulator_ = &ofdm_;
+  Modulator* modulator_ = &ask_;
 
   size_t rx_samples_ = 0;
   float max_preamble_corr = 0.0f;
