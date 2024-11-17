@@ -139,10 +139,14 @@ Option load_option(std::string filename) {
         auto backoff_ms = value_opt(smac_option, "backoff_ms")
                               .transform(to_int)
                               .value_or(100);
+        auto max_backoff_ms = value_opt(smac_option, "max_backoff_ms")
+                                  .transform(to_int)
+                                  .value_or(1000);
         result.timeout_ms = timeout_ms;
         result.max_retries = max_retries;
         result.busy_power_threshold = busy_power_threshold;
         result.backoff_ms = backoff_ms;
+        result.max_backoff_ms = max_backoff_ms;
         return result;
       } else {
         return {};

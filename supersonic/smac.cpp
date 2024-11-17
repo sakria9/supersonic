@@ -66,6 +66,18 @@ awaitable<void> Smac::run() {
     int retries;  // channel busy
   } tx_state;
 
+  auto get_backoff_ms = [&](int retries) -> int {
+    if (double(pow(2, retries) * (double)opt_.backoff_ms) >
+        opt_.max_backoff_ms) {
+      // rand from backoff_ms to max_backoff_ms
+      return (float(rand()) / RAND_MAX) *
+                 (opt_.max_backoff_ms - opt_.backoff_ms) +
+             opt_.backoff_ms;
+    } else {
+      return pow(2, retries) * opt_.backoff_ms;
+    }
+  };
+
   auto tx_data = [&]() -> awaitable<void> {
     LOG_INFO("tx_data");
     if (tx_state.state != TxState::State::Sending) {
@@ -78,7 +90,7 @@ awaitable<void> Smac::run() {
         LOG_ERROR("Channel busy. Max retries reached, LINK ERROR");
         throw std::runtime_error("LINK ERROR");
       }
-      auto backoff_ms = int((float)rand() * opt_.backoff_ms / RAND_MAX);
+      auto backoff_ms = get_backoff_ms(tx_state.retries);
       LOG_WARN("Channel busy, wait {} ms, retry {}, {} > {}", backoff_ms,
                tx_state.retries, phy_.supersonic_->rx_power(),
                opt_.busy_power_threshold);
@@ -110,7 +122,7 @@ awaitable<void> Smac::run() {
   };
 
   auto tx_data_resend = [&]() -> awaitable<void> {
-    LOG_WARN("tx_data_resend");
+    // LOG_WARN("tx_data_resend");
     if (tx_state.state != TxState::State::WaitingAck) {
       LOG_ERROR("Invalid state, this should not happen");
       throw std::runtime_error("Invalid state");
@@ -123,8 +135,10 @@ awaitable<void> Smac::run() {
 
     tx_state.state = TxState::State::Sending;
     tx_state.resend++;
+    auto backoff_ms = get_backoff_ms(tx_state.resend);
     tx_state.timeout_ts = std::chrono::high_resolution_clock::now() +
-                          std::chrono::milliseconds(opt_.timeout_ms);
+                          std::chrono::milliseconds(backoff_ms);
+    LOG_WARN("Resend {}, backoff {} ms", tx_state.resend, backoff_ms);
     co_return;
   };
 

@@ -83,6 +83,7 @@ struct SmacOption {
   uint8_t mac_addr;
   int timeout_ms;
   int backoff_ms;
+  int max_backoff_ms;
   int max_retries;
   float busy_power_threshold;
 };
