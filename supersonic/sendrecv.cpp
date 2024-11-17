@@ -28,7 +28,7 @@ awaitable<void> async_send(SuperSonic::Sphy& phy) {
 
   std::ofstream ofs("input.txt");
   for (size_t i = 0; i < rounds; i++) {
-    Bits bits(768);
+    Bits bits(2048);
     for (size_t i = 0; i < bits.size(); i++) {
       bits[i] = rand() % 2;
       ofs << (int)bits[i];

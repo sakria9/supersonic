@@ -60,6 +60,7 @@ struct SphyOption {
   const size_t frame_gap_size;
   const float magic_factor;
   const float preamble_threshold;
+  const size_t max_payload_size;
   const OFDMOption ofdm_option;
 
   SphyOption(SaudioOption saudio_option,
@@ -67,12 +68,14 @@ struct SphyOption {
              size_t frame_gap_size = 48,
              float magic_factor = -1.0f,
              float preamble_threshold = 0.1f,
+             size_t max_payload_size = 2048,
              OFDMOption ofdm_option = OFDMOption())
       : saudio_option(saudio_option),
         bin_payload_size(bin_payload_size),
         frame_gap_size(frame_gap_size),
         magic_factor(magic_factor),
         preamble_threshold(preamble_threshold),
+        max_payload_size(max_payload_size),
         ofdm_option(ofdm_option) {}
 };
 

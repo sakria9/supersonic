@@ -45,7 +45,6 @@ class Sphy {
     LOG_INFO("chirp len {}", chirp.size());
   }
 
-  static constexpr size_t max_payload_size = 812;
   // Phy frame: chirp + len + payload + gap
 
   std::vector<Samples> frames;
@@ -92,7 +91,7 @@ class Sphy {
   using TxChannel =
       boost::asio::experimental::channel<void(boost::system::error_code, Bits)>;
 
-  static constexpr int len_samples = 10;
+  static constexpr int len_samples = 14;
 
   awaitable<Bits> rx() {
     auto phy_payload = co_await receive_frame();
@@ -115,7 +114,7 @@ class Sphy {
     auto len_bits = modulator_->demodulate(len_wave);
     auto len = bits2Int(len_bits);
 
-    if (!(1 <= len && len <= max_payload_size)) {
+    if (!(1 <= len && len <= opt_.max_payload_size)) {
       co_return Bits{};
     }
 
@@ -137,7 +136,7 @@ class Sphy {
       throw std::runtime_error("Tx channel not initialized");
       co_return;
     }
-    if (!(1 <= bits.size() && bits.size() <= max_payload_size)) {
+    if (!(1 <= bits.size() && bits.size() <= opt_.max_payload_size)) {
       LOG_ERROR("Invalid bits size: {}", bits.size());
       throw std::runtime_error("Invalid bits size");
     }
@@ -192,7 +191,7 @@ class Sphy {
     auto bits_per_symbol = modulator_->bits_per_symbol();
     bits.resize((bits.size() + bits_per_symbol - 1) / bits_per_symbol *
                 bits_per_symbol);
-    if (bits.size() > max_payload_size) {
+    if (bits.size() > opt_.max_payload_size) {
       LOG_ERROR("Invalid bits size: {}", bits.size());
       co_return;
     }
@@ -324,7 +323,7 @@ class Sphy {
         SampleView{phy_payload.begin(), phy_payload.begin() + len_size};
     auto len_bits = modulator_->demodulate(len_wave);
     auto len = bits2Int(len_bits);
-    if (!(1 <= len && len <= max_payload_size)) {
+    if (!(1 <= len && len <= opt_.max_payload_size)) {
       LOG_WARN("Invalid len: {}, corrupted frame", len);
       len = 1;
     }

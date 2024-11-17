@@ -105,9 +105,11 @@ Option load_option(std::string filename) {
           value_opt(sphy_option, "magic_factor").transform(to_float);
       auto preamble_threshold =
           value_opt(sphy_option, "preamble_threshold").transform(to_float);
+      auto max_payload_size =
+          value_opt(sphy_option, "max_payload_size").transform(to_int);
       if (bin_payload_size || frame_gap_size) {
         return SphyOption(saudio_opt, *bin_payload_size, *frame_gap_size,
-                          *magic_factor, *preamble_threshold, ofdm_opt);
+                          *magic_factor, *preamble_threshold, *max_payload_size, ofdm_opt);
       } else {
         return SphyOption(saudio_opt);
       }
