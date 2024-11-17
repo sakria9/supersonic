@@ -2,7 +2,8 @@
 
 #include <kiss_fft.h>
 
-#include "supersonic.h"
+#include "config.h"
+#include "modulator.h"
 #include "utils.h"
 
 namespace SuperSonic {
@@ -19,13 +20,19 @@ namespace SuperSonic {
 // static constexpr std::array<int, 2> channels = {1, 2};
 // static constexpr int opt.symbol_bits = 1;
 
-class OFDM {
+class OFDM : public Modulator {
  public:
   const Config::OFDMOption opt;
 
   OFDM(Config::OFDMOption opt) : opt(opt) {}
 
-  inline Samples modulate(Bits bits) {
+  size_t phy_payload_size(size_t bin_payload_size) const override {
+    return opt.phy_payload_size(bin_payload_size);
+  }
+  size_t symbol_samples() const override { return opt.symbol_samples; }
+  size_t bits_per_symbol() const override { return opt.channels.size(); }
+
+  Samples modulate(Bits bits) override {
     if (bits.size() % opt.channels.size() != 0) {
       LOG_ERROR("Invalid bits size: {}", bits.size());
       throw std::runtime_error("Invalid bits size");
@@ -75,7 +82,7 @@ class OFDM {
     return wave;
   }
 
-  inline Bits demodulate(SampleView wave) {
+  Bits demodulate(SampleView wave) override {
     if (wave.size() % opt.symbol_samples != 0) {
       LOG_ERROR("Invalid wave size: {}", wave.size());
       throw std::runtime_error("Invalid wave size");

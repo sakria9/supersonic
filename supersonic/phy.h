@@ -19,8 +19,10 @@ namespace this_coro = boost::asio::this_coro;
   boost::asio::use_awaitable_t(__FILE__, __LINE__, __PRETTY_FUNCTION__)
 #endif
 
+#include "ask.h"
 #include "chirp.h"
 #include "log.h"
+#include "modulator.h"
 #include "ofdm.h"
 #include "supersonic.h"
 #include "utils.h"
@@ -90,27 +92,27 @@ class Sphy {
   using TxChannel =
       boost::asio::experimental::channel<void(boost::system::error_code, Bits)>;
 
-  static constexpr int len_samples = 1;
+  static constexpr int len_samples = 10;
 
   awaitable<Bits> rx() {
     auto phy_payload = co_await receive_frame();
 
     recv_frames.push_back(phy_payload);
 
-    auto len_size = len_samples * opt_.ofdm_option.symbol_samples;
+    auto len_size = len_samples * modulator_->symbol_samples();
     auto len_wave =
         SampleView{phy_payload.begin(), phy_payload.begin() + len_size};
     auto payload_wave =
         SampleView{phy_payload.begin() + len_size, phy_payload.end()};
 
-    auto len_bits = ofdm_.demodulate(len_wave);
+    auto len_bits = modulator_->demodulate(len_wave);
     auto len = bits2Int(len_bits);
 
     if (!(1 <= len && len <= max_payload_size)) {
       co_return Bits{};
     }
 
-    auto raw_bits = ofdm_.demodulate(payload_wave);
+    auto raw_bits = modulator_->demodulate(payload_wave);
     raw_bits.resize(len);
 
     LOG_INFO("Sphy Received {} bits", raw_bits.size());
@@ -180,7 +182,7 @@ class Sphy {
   awaitable<void> send_bits(Bits bits) {
     auto raw_bit_len = bits.size();
 
-    auto bits_per_symbol = opt_.ofdm_option.channels.size();
+    auto bits_per_symbol = modulator_->bits_per_symbol();
     bits.resize((bits.size() + bits_per_symbol - 1) / bits_per_symbol *
                 bits_per_symbol);
     if (bits.size() > max_payload_size) {
@@ -188,9 +190,11 @@ class Sphy {
       co_return;
     }
 
-    auto len_wave =
-        ofdm_.modulate(int2Bits(raw_bit_len, len_samples * bits_per_symbol));
-    auto payload_wave = ofdm_.modulate(std::move((bits)));
+    LOG_INFO("Sphy Sending {} bits", bits.size());
+
+    auto len_wave = modulator_->modulate(
+        int2Bits(raw_bit_len, len_samples * bits_per_symbol));
+    auto payload_wave = modulator_->modulate(std::move((bits)));
     auto wave = Signal::concatenate(len_wave, payload_wave);
 
     if (wave.size() < 64) {
@@ -286,12 +290,12 @@ class Sphy {
       auto max_idx = argmax(corr);
       if (corr[max_idx] > max_preamble_corr) {
         max_preamble_corr = corr[max_idx];
-        LOG_INFO("Max preamble corr: {}", max_preamble_corr);
+        // LOG_INFO("Max preamble corr: {}", max_preamble_corr);
       }
       if (max_idx == PREMABLE_PEEK_SIZE &&
           corr[max_idx] > opt_.preamble_threshold) {
         // preamble found
-        // LOG_INFO("Preamble found with corr={}", corr[max_idx]);
+        LOG_INFO("Preamble found with corr={}", corr[max_idx]);
         break;
       }
     }
@@ -301,8 +305,7 @@ class Sphy {
     Samples phy_payload{peek_wave.begin(), peek_wave.end()};
 
     // read till len
-    auto sample_size = opt_.ofdm_option.symbol_samples;
-    auto len_size = len_samples * sample_size;
+    auto len_size = len_samples * modulator_->symbol_samples();
     if (phy_payload.size() < len_size) {
       auto to_read = len_size - phy_payload.size();
       for (size_t i = 0; i < to_read; i++) {
@@ -312,14 +315,14 @@ class Sphy {
 
     auto len_wave =
         SampleView{phy_payload.begin(), phy_payload.begin() + len_size};
-    auto len_bits = ofdm_.demodulate(len_wave);
+    auto len_bits = modulator_->demodulate(len_wave);
     auto len = bits2Int(len_bits);
     if (!(1 <= len && len <= max_payload_size)) {
       LOG_WARN("Invalid len: {}, corrupted frame", len);
       len = 1;
     }
 
-    auto frame_total_size = len_size + opt_.ofdm_option.phy_payload_size(len);
+    auto frame_total_size = len_size + modulator_->phy_payload_size(len);
     auto to_read = frame_total_size - phy_payload.size();
     for (size_t i = 0; i < to_read; i++) {
       phy_payload.push_back(co_await rx_pop());
@@ -332,6 +335,9 @@ class Sphy {
   std::unique_ptr<Saudio> supersonic_;
   std::unique_ptr<TxChannel> tx_channel_;
   OFDM ofdm_;
+  ASK ask_;
+
+  Modulator* modulator_ = &ofdm_;
 
   size_t rx_samples_ = 0;
   float max_preamble_corr = 0.0f;
