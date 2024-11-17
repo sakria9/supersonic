@@ -76,6 +76,7 @@ class Smac {
   awaitable<void> listen();
 
   awaitable<void> tx(Bits bits);
+  awaitable<Bits> rx();
 
   awaitable<void> tx_frame(Frame frame) {
     auto bits = make_frame(frame);
@@ -91,7 +92,12 @@ class Smac {
   using RxChannel =
       boost::asio::experimental::channel<void(boost::system::error_code,
                                               Frame)>;
+  using RxDataChannel =
+      boost::asio::experimental::channel<void(boost::system::error_code,
+                                              Bits)>;
+
   std::unique_ptr<RxChannel> rx_channel_;
+  std::unique_ptr<RxDataChannel> rx_data_channel_;
   std::unique_ptr<TxChannel> tx_channel_;
   std::unique_ptr<TxCompChannel> tx_comp_channel_;
 

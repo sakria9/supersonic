@@ -171,8 +171,9 @@ Option load_option(std::string filename) {
       auto task = value_opt(project2_option, "task").transform(to_int);
       auto payload_size =
           value_opt(project2_option, "payload_size").transform(to_int);
-      if (task && payload_size) {
-        return Project2Option{int(*task), static_cast<size_t>(*payload_size)};
+      auto bin_size = value_opt(project2_option, "bin_size").transform(to_int);
+      if (task && payload_size && bin_size) {
+        return Project2Option{int(*task), static_cast<size_t>(*payload_size), static_cast<size_t>(*bin_size)};
       } else {
         throw std::runtime_error("payload_size must be specified");
       }

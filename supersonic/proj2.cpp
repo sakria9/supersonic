@@ -11,6 +11,90 @@ awaitable<void> expiry(int seconds) {
   co_await timer.async_wait(use_awaitable);
 }
 
+awaitable<void> async_tx(boost::asio::io_context& ctx,
+                         SuperSonic::Sphy& phy,
+                         SuperSonic::Smac& mac,
+                         SuperSonic::Config::Option& option) {
+  // read bits from input.txt
+  std::ifstream ifs("input.txt");
+  if (!ifs.is_open()) {
+    LOG_ERROR("Failed to open input.txt");
+    co_return;
+  }
+  SuperSonic::Bits input_bits;
+  while (true) {
+    char c;
+    ifs >> c;
+    if (ifs.eof()) {
+      break;
+    }
+    input_bits.push_back(c - '0');
+  }
+  LOG_INFO("Read {} bits from input.txt", input_bits.size());
+  if (input_bits.size() != option.project2_option.bin_size) {
+    LOG_ERROR("Invalid bits size: {} != {}", input_bits.size(),
+              option.project2_option.bin_size);
+    throw std::runtime_error("Invalid bits size");
+  }
+
+  auto payload_size = option.project2_option.payload_size;
+
+  std::vector<SuperSonic::Bits> frames;
+  frames.push_back({});
+  for (size_t i = 0; i < input_bits.size(); i++) {
+    if (frames.back().size() == payload_size) {
+      frames.push_back({});
+    }
+    frames.back().push_back(input_bits[i]);
+  }
+  size_t rounds = frames.size();
+
+  auto start_ts = std::chrono::high_resolution_clock::now();
+  std::vector<double> frame_times;
+  for (size_t i = 0; i < rounds; i++) {
+    LOG_INFO("Kicked frame {}", i);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    co_await mac.tx(frames[i]);
+    auto end = std::chrono::high_resolution_clock::now();
+    frame_times.push_back(
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start)
+            .count() *
+        1e-6);
+  }
+  auto end_ts = std::chrono::high_resolution_clock::now();
+  auto sec_float =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end_ts - start_ts)
+          .count() /
+      1000.0;
+  LOG_INFO("Sent {} frames in {} s, {} bps", rounds, sec_float,
+           (option.project2_option.bin_size) / sec_float);
+
+  // print frame times in one line using fmt
+  LOG_INFO("Frame times: {}", fmt::join(frame_times, " "));
+}
+
+awaitable<void> async_rx(boost::asio::io_context& ctx,
+                           SuperSonic::Sphy& phy,
+                           SuperSonic::Smac& mac,
+                           SuperSonic::Config::Option& option) {
+  SuperSonic::Bits bits;
+  while (bits.size() < option.project2_option.bin_size) {
+    LOG_INFO("Received {} bits, expect {} bits", bits.size(),
+             option.project2_option.bin_size);
+    auto rx = co_await mac.rx();
+    bits.insert(bits.end(), rx.begin(), rx.end());
+  }
+  LOG_INFO("Received {} bits", bits.size());
+  {
+    std::ofstream ofs("output.txt");
+    for (auto e : bits) {
+      ofs << (int)e;
+    }
+    LOG_INFO("Wrote {} bits to output.txt", bits.size());
+  }
+}
+
 awaitable<void> async_main(boost::asio::io_context& ctx,
                            SuperSonic::Sphy& phy,
                            SuperSonic::Smac& mac,
@@ -20,32 +104,10 @@ awaitable<void> async_main(boost::asio::io_context& ctx,
   auto ex = co_await this_coro::executor;
   co_spawn(ex, mac.run(), detached);
 
+  co_spawn(ex, async_rx(ctx, phy, mac, option), detached);
+
   if (option.project2_option.task == 1) {
-    auto start_ts = std::chrono::high_resolution_clock::now();
-    constexpr int rounds = 100;
-    std::vector<double> frame_times;
-    for (int i = 0; i < rounds; i++) {
-      SuperSonic::Bits bits(option.project2_option.payload_size);
-      LOG_INFO("Kicked frame {}", i);
-
-      auto start = std::chrono::high_resolution_clock::now();
-      co_await mac.tx(bits);
-      auto end = std::chrono::high_resolution_clock::now();
-      frame_times.push_back(
-          std::chrono::duration_cast<std::chrono::microseconds>(end - start)
-              .count() *
-          1e-6);
-    }
-    auto end_ts = std::chrono::high_resolution_clock::now();
-    auto sec_float =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end_ts - start_ts)
-            .count() /
-        1000.0;
-    LOG_INFO("Sent {} frames in {} s, {} bps", rounds, sec_float,
-             (rounds * option.project2_option.payload_size) / sec_float);
-
-    // print frame times in one line using fmt
-    LOG_INFO("Frame times: {}", fmt::join(frame_times, " "));
+    co_await async_tx(ctx, phy, mac, option);
   } else if (option.project2_option.task == 2) {
     LOG_INFO("RX only mode");
   }

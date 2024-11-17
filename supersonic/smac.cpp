@@ -16,6 +16,11 @@ awaitable<void> Smac::tx(Bits bits) {
   co_await tx_comp_channel_->async_receive();
 }
 
+awaitable<Bits> Smac::rx() {
+  auto bits = co_await rx_data_channel_->async_receive();
+  co_return bits;
+}
+
 awaitable<void> Smac::run() {
   using namespace boost::asio::experimental::awaitable_operators;
 
@@ -25,6 +30,8 @@ awaitable<void> Smac::run() {
 
   static constexpr int RX_BUFFER_SIZE = 1000;
   rx_channel_ = std::make_unique<RxChannel>(ex, RX_BUFFER_SIZE);
+  rx_data_channel_ = std::make_unique<RxDataChannel>(ex, RX_BUFFER_SIZE);
+
   static constexpr int TX_BUFFER_SIZE = 0;
   tx_channel_ = std::make_unique<TxChannel>(ex, TX_BUFFER_SIZE);
   tx_comp_channel_ = std::make_unique<TxCompChannel>(ex, TX_BUFFER_SIZE);
@@ -185,6 +192,8 @@ awaitable<void> Smac::run() {
         "Sending ACK src {} dest {} seq {}",
         frame.src, frame.seq, frame.payload.size(), opt_.mac_addr, frame.src,
         rx_seq_map[frame.src]);
+    co_await rx_data_channel_->async_send({}, frame.payload);
+    LOG_INFO("Frame pushed to rx data channel");
 
     // Send ACK with next seq
     Frame ack_frame{
@@ -327,7 +336,7 @@ void Smac::set_frame_seq(MutBitView frame, uint8_t seq) {
 
 Smac::Frame Smac::parse_frame(BitView frame) {
   const int payload_bits = frame.size() - header_bits - crc_bits;
-  auto payload = frame.subspan(dest_bits + type_bits + seq_bits, payload_bits);
+  auto payload = frame.subspan(header_bits, payload_bits);
   auto payload_vec = std::vector<uint8_t>(payload.begin(), payload.end());
   return Frame{get_frame_src(frame), get_frame_dest(frame),
                get_frame_type(frame), get_frame_seq(frame),

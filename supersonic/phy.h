@@ -141,7 +141,7 @@ class Sphy {
       throw std::runtime_error("Invalid bits size");
     }
 
-    // LOG_INFO("Sending {} bits", bits.size());
+    // LOG_INFO("Sphy Sending {} bits", bits.size());
     // for (size_t i = 0; i < bits.size(); i++) {
     //   printf("%d", bits[i]);
     // }

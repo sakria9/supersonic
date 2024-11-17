@@ -94,6 +94,7 @@ struct Project1Option {
 struct Project2Option {
   int task;
   size_t payload_size;
+  size_t bin_size;
 };
 
 
