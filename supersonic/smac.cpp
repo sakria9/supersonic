@@ -103,7 +103,7 @@ awaitable<void> Smac::run() {
   };
 
   auto tx_data_resend = [&]() -> awaitable<void> {
-    LOG_INFO("tx_data_resend");
+    LOG_WARN("tx_data_resend");
     if (tx_state.state != TxState::State::WaitingAck) {
       LOG_ERROR("Invalid state, this should not happen");
       throw std::runtime_error("Invalid state");
