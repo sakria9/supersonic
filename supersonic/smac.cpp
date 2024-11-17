@@ -135,7 +135,7 @@ awaitable<void> Smac::run() {
 
     tx_state.state = TxState::State::Sending;
     tx_state.resend++;
-    auto backoff_ms = get_backoff_ms(tx_state.resend);
+    auto backoff_ms = get_backoff_ms(15);
     tx_state.timeout_ts = std::chrono::high_resolution_clock::now() +
                           std::chrono::milliseconds(backoff_ms);
     LOG_WARN("Resend {}, backoff {} ms", tx_state.resend, backoff_ms);
