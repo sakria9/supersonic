@@ -347,7 +347,7 @@ static bool FilterPacket(_In_ const BYTE* Packet, _In_ DWORD PacketSize) {
     // LOG_INFO("IP Version = {} != 4", IpVersion);
     return false;
   }
-  if (Packet[16] != 172) {
+  if ((Packet[16] != 172) && !(Packet[16] == 1 && Packet[17] == 1 && Packet[18] == 1 && Packet[19] == 1)) {
     return false;
   }
   if (Packet[19] == 255) {
