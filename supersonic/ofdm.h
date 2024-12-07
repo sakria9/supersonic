@@ -53,7 +53,7 @@ class OFDM : public Modulator {
         in[j].i = 0;
       }
 
-      float A = 0.5 / opt.channels.size();
+      float A = 0.5f / opt.channels.size();
       for (size_t j = 0; j < opt.channels.size(); j++) {
         auto channel = opt.channels[j];
         if (cur_bits[j]) {

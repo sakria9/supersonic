@@ -3,7 +3,7 @@
 #include "mac.h"
 #include "phy.h"
 
-static awaitable<void> expiry_ms(int ms) {
+static awaitable<void> expiry_ms(size_t ms) {
   steady_timer timer(co_await this_coro::executor);
   timer.expires_after(std::chrono::milliseconds(ms));
   co_await timer.async_wait(use_awaitable);
@@ -70,11 +70,11 @@ awaitable<void> Smac::run() {
     if (double(pow(2, retries) * (double)opt_.backoff_ms) >
         opt_.max_backoff_ms) {
       // rand from backoff_ms to max_backoff_ms
-      return (float(rand()) / RAND_MAX) *
+      return static_cast<int>((float(rand()) / RAND_MAX) *
                  (opt_.max_backoff_ms - opt_.backoff_ms) +
-             opt_.backoff_ms;
+             opt_.backoff_ms);
     } else {
-      return pow(2, retries) * opt_.backoff_ms;
+      return static_cast<int>(pow(2, retries) * opt_.backoff_ms);
     }
   };
 
@@ -349,7 +349,11 @@ void Smac::set_frame_seq(MutBitView frame, uint8_t seq) {
 }
 
 Smac::Frame Smac::parse_frame(BitView frame) {
-  const int payload_bits = frame.size() - header_bits - crc_bits;
+  if (frame.size() <= header_bits + crc_bits) {
+    LOG_ERROR("Frame too short");
+    throw std::runtime_error("Frame too short");
+  }
+  const size_t payload_bits = frame.size() - header_bits - crc_bits;
   auto payload = frame.subspan(header_bits, payload_bits);
   auto payload_vec = std::vector<uint8_t>(payload.begin(), payload.end());
   return Frame{get_frame_src(frame), get_frame_dest(frame),

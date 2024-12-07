@@ -294,14 +294,14 @@ inline Bits uniform_dereorder(BitView reorderedBits) {
   return bits;
 }
 
-inline Bits int2Bits(int n, int size) {
+inline Bits int2Bits(size_t n, int size) {
   Bits bits(size);
   for (int i = 0; i < size; i++) {
     bits[i] = static_cast<uint8_t>((n >> i) & 1);
   }
   return bits;
 }
-inline void int2Bits(int n, MutBitView bits) {
+inline void int2Bits(size_t n, MutBitView bits) {
   for (int i = 0; i < bits.size(); i++) {
     bits[i] = static_cast<uint8_t>((n >> i) & 1);
   }

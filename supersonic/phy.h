@@ -50,7 +50,7 @@ class Sphy {
   std::vector<Samples> frames;
   std::vector<Samples> recv_frames;
   ~Sphy() {
-#if 1
+#if 0
     LOG_INFO("frames size = {}", frames.size());
     LOG_INFO("recv_frames size = {}", recv_frames.size());
     // write to ddata/frames{i}.txt
@@ -189,6 +189,14 @@ class Sphy {
     auto raw_bit_len = bits.size();
 
     auto bits_per_symbol = modulator_->bits_per_symbol();
+
+    auto max_len = pow(2, len_samples * bits_per_symbol);
+    if (raw_bit_len >= max_len) {
+      LOG_ERROR("Payload len too large: {} > {}", raw_bit_len, max_len);
+      co_return;
+    }
+
+
     bits.resize((bits.size() + bits_per_symbol - 1) / bits_per_symbol *
                 bits_per_symbol);
     if (bits.size() > opt_.max_payload_size) {
@@ -199,7 +207,7 @@ class Sphy {
     LOG_INFO("Sphy Sending {} bits", bits.size());
 
     auto len_wave = modulator_->modulate(
-        int2Bits(raw_bit_len, len_samples * bits_per_symbol));
+        int2Bits(raw_bit_len, static_cast<int>(len_samples * bits_per_symbol)));
     auto payload_wave = modulator_->modulate(std::move((bits)));
     auto wave = Signal::concatenate(len_wave, payload_wave);
 

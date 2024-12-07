@@ -70,6 +70,9 @@ Option load_option(std::string filename) {
 
     // OFDM
     auto ofdm_opt = [&]() {
+      if (!j.as_object().contains("ofdm_option")) {
+        return OFDMOption();
+      }
       auto ofdm_option = j.at("ofdm_option").as_object();
       auto symbol_freq =
           value_opt(ofdm_option, "symbol_freq").transform(to_int);
