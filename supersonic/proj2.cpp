@@ -78,21 +78,23 @@ awaitable<void> async_rx(boost::asio::io_context& ctx,
                            SuperSonic::Sphy& phy,
                            SuperSonic::Smac& mac,
                            SuperSonic::Config::Option& option) {
+
+  std::ofstream ofs("output.txt");
+
   SuperSonic::Bits bits;
   while (bits.size() < option.project2_option.bin_size) {
     LOG_INFO("Received {} bits, expect {} bits", bits.size(),
              option.project2_option.bin_size);
     auto rx = co_await mac.rx();
     bits.insert(bits.end(), rx.begin(), rx.end());
-  }
-  LOG_INFO("Received {} bits", bits.size());
-  {
-    std::ofstream ofs("output.txt");
-    for (auto e : bits) {
+    for (auto e : rx) {
       ofs << (int)e;
     }
+    ofs.flush();
     LOG_INFO("Wrote {} bits to output.txt", bits.size());
   }
+
+  LOG_INFO("Received {} bits", bits.size());
 }
 
 awaitable<void> async_main(boost::asio::io_context& ctx,

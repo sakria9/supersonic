@@ -304,7 +304,7 @@ class Sphy {
       auto max_idx = argmax(corr);
       if (corr[max_idx] > max_preamble_corr) {
         max_preamble_corr = corr[max_idx];
-        LOG_INFO("Max preamble corr: {}", max_preamble_corr);
+        // LOG_INFO("Max preamble corr: {}", max_preamble_corr);
       }
       if (max_idx == PREMABLE_PEEK_SIZE &&
           corr[max_idx] > opt_.preamble_threshold) {

@@ -349,7 +349,7 @@ void Smac::set_frame_seq(MutBitView frame, uint8_t seq) {
 }
 
 Smac::Frame Smac::parse_frame(BitView frame) {
-  if (frame.size() <= header_bits + crc_bits) {
+  if (frame.size() < header_bits + crc_bits) {
     LOG_ERROR("Frame too short");
     throw std::runtime_error("Frame too short");
   }

@@ -112,7 +112,8 @@ Option load_option(std::string filename) {
           value_opt(sphy_option, "max_payload_size").transform(to_int);
       if (bin_payload_size || frame_gap_size) {
         return SphyOption(saudio_opt, *bin_payload_size, *frame_gap_size,
-                          *magic_factor, *preamble_threshold, *max_payload_size, ofdm_opt);
+                          *magic_factor, *preamble_threshold, *max_payload_size,
+                          ofdm_opt);
       } else {
         return SphyOption(saudio_opt);
       }
@@ -156,6 +157,21 @@ Option load_option(std::string filename) {
       }
     }();
 
+    // TUN
+    auto tun_opt = [&]() -> TunOption {
+      if (j.as_object().contains("tun_option")) {
+        auto tun_option = j.at("tun_option").as_object();
+        auto ip_suffix = value_opt(tun_option, "ip_suffix").transform(to_int);
+        if (ip_suffix) {
+          return TunOption{.ip_suffix = static_cast<uint8_t>(*ip_suffix)};
+        } else {
+          throw std::runtime_error("ip_suffix must be specified");
+        }
+      } else {
+        return TunOption{.ip_suffix = 1};
+      }
+    }();
+
     // Project1
     auto project1_opt = [&]() {
       auto project1_option = j.at("project1_option").as_object();
@@ -180,7 +196,8 @@ Option load_option(std::string filename) {
           value_opt(project2_option, "payload_size").transform(to_int);
       auto bin_size = value_opt(project2_option, "bin_size").transform(to_int);
       if (task && payload_size && bin_size) {
-        return Project2Option{int(*task), static_cast<size_t>(*payload_size), static_cast<size_t>(*bin_size)};
+        return Project2Option{int(*task), static_cast<size_t>(*payload_size),
+                              static_cast<size_t>(*bin_size)};
       } else {
         throw std::runtime_error("payload_size must be specified");
       }
@@ -189,6 +206,7 @@ Option load_option(std::string filename) {
     return {
         .sphy_option = sphy_opt,
         .smac_option = smac_opt,
+        .tun_option = tun_opt,
         .project1_option = project1_opt,
         .project2_option = project2_opt,
     };

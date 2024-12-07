@@ -88,6 +88,10 @@ struct SmacOption {
   float busy_power_threshold;
 };
 
+struct TunOption {
+  uint8_t ip_suffix;
+};
+
 struct Project1Option {
   size_t payload_size;
 };
@@ -102,6 +106,7 @@ struct Project2Option {
 struct Option {
   SphyOption sphy_option;
   SmacOption smac_option;
+  TunOption tun_option;
   Project1Option project1_option;
   Project2Option project2_option;
 };

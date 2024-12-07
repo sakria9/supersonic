@@ -314,4 +314,22 @@ inline int bits2Int(BitView bits) {
   return n;
 }
 
+inline Bytes bitsToBytes(BitView bits) {
+  Bytes bytes((bits.size() + 7) / 8);
+  for (size_t i = 0; i < bits.size(); i++) {
+    bytes[i / 8] |= bits[i] << (i % 8);
+  }
+  return bytes;
+}
+
+inline Bits bytesToBits(ByteView bytes) {
+  Bits bits(bytes.size() * 8);
+  for (size_t i = 0; i < bytes.size(); i++) {
+    for (size_t j = 0; j < 8; j++) {
+      bits[i * 8 + j] = (bytes[i] >> j) & 1;
+    }
+  }
+  return bits;
+}
+
 }  // namespace SuperSonic
