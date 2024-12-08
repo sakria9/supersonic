@@ -119,6 +119,9 @@ awaitable<void> Smac::run() {
     tx_state.frame = frame;
     tx_state.timeout_ts = std::chrono::high_resolution_clock::now() +
                           std::chrono::milliseconds(opt_.timeout_ms);
+
+    tx_state.state = TxState::State::Idle;
+    co_await tx_comp_channel_->async_send({}, 0);
   };
 
   auto tx_data_resend = [&]() -> awaitable<void> {
@@ -189,15 +192,15 @@ awaitable<void> Smac::run() {
     }
 
     // check seq
-    if (frame.seq != rx_seq_map[frame.src]) {
-      LOG_WARN("Received frame seq {} is not expected {}, send another ACK",
-               frame.seq, rx_seq_map[frame.src]);
-      Frame ack_frame{
-          opt_.mac_addr, frame.src, FrameType::Ack, rx_seq_map[frame.src], {}};
-      co_await tx_frame(ack_frame);
-      co_return;
-    }
-    rx_seq_map[frame.src] = next_seq(rx_seq_map[frame.src]);
+    // if (frame.seq != rx_seq_map[frame.src]) {
+    //   LOG_WARN("Received frame seq {} is not expected {}, send another ACK",
+    //            frame.seq, rx_seq_map[frame.src]);
+    //   Frame ack_frame{
+    //       opt_.mac_addr, frame.src, FrameType::Ack, rx_seq_map[frame.src], {}};
+    //   co_await tx_frame(ack_frame);
+    //   co_return;
+    // }
+    // rx_seq_map[frame.src] = next_seq(rx_seq_map[frame.src]);
 
     // Correctly received frame
     // push payload to somewhere, here we just print it
@@ -210,19 +213,22 @@ awaitable<void> Smac::run() {
     LOG_INFO("Frame pushed to rx data channel");
 
     // Send ACK with next seq
-    Frame ack_frame{
-        opt_.mac_addr, frame.src, FrameType::Ack, rx_seq_map[frame.src], {}};
-    co_await tx_frame(ack_frame);
-    LOG_INFO("ACK sent");
+    // Frame ack_frame{
+    //     opt_.mac_addr, frame.src, FrameType::Ack, rx_seq_map[frame.src], {}};
+    // co_await tx_frame(ack_frame);
+    // LOG_INFO("ACK sent");
   };
 
   while (1) {
     LOG_INFO("State {}", std::to_underlying(tx_state.state));
     if (tx_state.state == TxState::State::Idle) {
       // get a tx task or recv data
+      LOG_INFO("co_await");
       auto result = co_await (tx_channel_->async_receive(use_awaitable) ||
                               rx_channel_->async_receive(use_awaitable));
+      LOG_INFO("co_await done");
       if (result.index() == 0) {
+        LOG_INFO("TX");
         // TX
         Bits& bits = std::get<0>(result);
 
@@ -232,6 +238,7 @@ awaitable<void> Smac::run() {
         tx_state.resend = 0;
         co_await tx_data();
       } else if (result.index() == 1) {
+        LOG_INFO("RX");
         // RX
         auto frame = std::get<1>(result);
         co_await rx_data(frame);
