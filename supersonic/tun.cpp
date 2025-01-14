@@ -358,7 +358,7 @@ bool Tun::FilterPacket(_In_ const BYTE* Packet, _In_ DWORD PacketSize) {
   uint32_t ip = ((Packet[16] << 24) | (Packet[17] << 16) | (Packet[18] << 8) |
                  Packet[19]);
   for (auto allow_ip : allow_ips) {
-    if ((ip & allow_ip) == allow_ip) {
+    if (ip == allow_ip) {
       LOG_INFO("Allow {}.{}.{}.{}", Packet[16], Packet[17], Packet[18], Packet[19]);
       return true;
     }
