@@ -2,6 +2,7 @@
 
 #include <fmt/ranges.h>
 #include <variant>
+#include <vector>
 
 #include "chirp.h"
 #include "log.h"
@@ -90,6 +91,7 @@ struct SmacOption {
 
 struct TunOption {
   uint8_t ip_suffix;
+  std::vector<uint32_t> allow_ips;
 };
 
 struct Project1Option {

@@ -162,11 +162,52 @@ Option load_option(std::string filename) {
       if (j.as_object().contains("tun_option")) {
         auto tun_option = j.at("tun_option").as_object();
         auto ip_suffix = value_opt(tun_option, "ip_suffix").transform(to_int);
+
+        TunOption r;
         if (ip_suffix) {
-          return TunOption{.ip_suffix = static_cast<uint8_t>(*ip_suffix)};
+          r.ip_suffix = static_cast<uint8_t>(*ip_suffix);
         } else {
           throw std::runtime_error("ip_suffix must be specified");
         }
+
+        if (tun_option.contains("allow_ips")) {
+          auto allow_ips = tun_option.at("allow_ips").as_array();
+          for (const auto& e : allow_ips) {
+            std::string ip_str{e.as_string()};
+            // Parse IP address
+            auto parseIpToUint32 = [](const std::string& ip) -> uint32_t {
+              uint32_t result = 0;
+              int shift = 24;  // Start with the most significant byte
+              std::istringstream ss(ip);
+              std::string token;
+
+              for (int i = 0; i < 4; ++i) {
+                if (!std::getline(ss, token, '.')) {
+                  throw std::invalid_argument("Invalid IP address format");
+                }
+
+                int octet = std::stoi(token);
+                if (octet < 0 || octet > 255) {
+                  throw std::out_of_range("IP address octet out of range");
+                }
+
+                result |= static_cast<uint32_t>(octet) << shift;
+                shift -= 8;
+              }
+
+              if (ss.rdbuf()->in_avail() != 0) {
+                throw std::invalid_argument("Invalid IP address format");
+              }
+
+              return result;
+            };
+            auto ip = parseIpToUint32(ip_str);
+            LOG_INFO("Allow IP: {} {}", ip_str, ip);
+            r.allow_ips.push_back(ip);
+          }
+        }
+
+        return r;
       } else {
         return TunOption{.ip_suffix = 1};
       }

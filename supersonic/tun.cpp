@@ -266,6 +266,8 @@ static WintunInstance wt;
 Tun::Tun(Config::TunOption& tun_option) {
   LOG_INFO("Hello from TUN");
 
+  allow_ips = tun_option.allow_ips;
+
   wt.Wintun = InitializeWintun();
   if (!wt.Wintun) {
     LogError(L"Failed to initialize Wintun", GetLastError());
@@ -336,24 +338,39 @@ Tun::Tun(Config::TunOption& tun_option) {
   LOG_INFO("Successfully initialized TUN");
 }
 
-static bool FilterPacket(_In_ const BYTE* Packet, _In_ DWORD PacketSize) {
-  // Filter out packets that are not IPv4
+bool Tun::FilterPacket(_In_ const BYTE* Packet, _In_ DWORD PacketSize) {
   // Filter out packets that destination is not beginning with 172
   if (PacketSize < 20) {
     return false;
   }
+
+  // Filter out packets that are not IPv4
   BYTE IpVersion = Packet[0] >> 4;
   if (IpVersion != 4) {
     // LOG_INFO("IP Version = {} != 4", IpVersion);
     return false;
   }
-  if ((Packet[16] != 172) && !(Packet[16] == 1 && Packet[17] == 1 && Packet[18] == 1 && Packet[19] == 1)) {
-    return false;
-  }
+
   if (Packet[19] == 255) {
     return false;
   }
-  return true;
+
+  uint32_t ip = ((Packet[16] << 24) | (Packet[17] << 16) | (Packet[18] << 8) |
+                 Packet[19]);
+  for (auto allow_ip : allow_ips) {
+    if ((ip & allow_ip) == allow_ip) {
+      return true;
+    }
+  }
+
+  LOG_INFO("Drop {}.{}.{}.{}", Packet[16], Packet[17], Packet[18], Packet[19]);
+
+  return false;
+
+  //if ((Packet[16] != 172) && !(Packet[16] == 1 && Packet[17] == 1 && Packet[18] == 1 && Packet[19] == 1)) {
+  //  return false;
+  //}
+  //return true;
 }
 
 void Tun::ReceivePackets() {

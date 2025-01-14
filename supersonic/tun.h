@@ -35,6 +35,7 @@ class Tun {
   Tun(Config::TunOption& tun_option);
   awaitable<void> init();
   void ReceivePackets();
+  bool FilterPacket(const BYTE* Packet, DWORD PacketSize);
   ~Tun(){};
 
   using Channel =
@@ -48,6 +49,8 @@ class Tun {
 
   // system want to send a packet
   std::unique_ptr<Channel> TxFromSystem;
+
+  std::vector<uint32_t> allow_ips;
 };
 
 }  // namespace SuperSonic
