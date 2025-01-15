@@ -93,7 +93,7 @@ def sine_wave(freq_hz, phase=0):
     return lambda time_in_second: np.sin(2 * np.pi * freq_hz * time_in_second + phase)
 
 def cosine_wave(freq_hz, phase=0):
-    return lambda time_in_second: np.sin(2 * np.pi * freq_hz * time_in_second + phase)
+    return lambda time_in_second: np.cos(2 * np.pi * freq_hz * time_in_second + phase)
 
 sine_440hz = sine_wave(440)
 sine_880hz = sine_wave(880)
@@ -130,7 +130,9 @@ def play_sine_waves(sine_waves: tuple[int, float, float], rate=48000):
 def play_and_record(data, rate, discard=True):
     save_wave_file("../build/temp.wav", rate, data)
 
-    cmd = "../build/supersonic/play_and_record -f ../build/temp.wav -i 'UGREEN CM564 USB Audio  Mono' -o 'USB2.0 Device Analog Stereo'"
+    cmd = "../build/supersonic/play_and_record -f ../build/temp.wav -i 'UGREEN CM564 USB Audio  Mono:capture_MONO' -o 'USB2.0 Device Analog Stereo:playback_FL' > stdout 2> stderr"
+    # cmd = "nice -n -20 ../build/supersonic/play_and_record -f ../build/temp.wav --ii 4 --oi 2 > stdout 2> stderr"
+    # print(cmd)
     # cmd = "..\\out\\build\\x64-debug\\supersonic\\play_and_record.exe -f ../build/temp.wav"
     import subprocess
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -159,7 +161,7 @@ def gen_chirp(f_0, c, duration, rate):
     chirp = np.sin(phi(times))
     chirp_rev = -np.flip(chirp)
     chirp = np.concatenate((chirp, chirp_rev))
-    chirp = np.concatenate((chirp, np.zeros(48)))
+    chirp = np.concatenate((chirp, np.zeros(int(rate * duration))))
     return chirp
 
 
@@ -167,9 +169,8 @@ chirp1 = gen_chirp(5000, 5000000, 0.001, 48000)
 chirp2 = gen_chirp(7000, 400000, 0.01, 48000)
 
 def locate_chirp(data, chirp):
-    corr = np.correlate(data / np.max(np.abs(data)), chirp, mode='full') / len(chirp)
-    loc = np.argmax(np.abs(corr) > 0.1)
-    print("max corr", np.max(np.abs(corr)))
+    corr = np.correlate(-data / np.max(np.abs(data)), chirp, mode='full') / len(chirp)
+    loc = np.argmax(corr)
     assert np.max(np.abs(corr)) > 0.1, f"Chirp not found, max corr {np.max(np.abs(corr))}"
     return loc
 
@@ -198,18 +199,56 @@ def play_and_record_precise2(data, rate):
     sine_wav = sine_wave_samples(440, 1 * 440, 0, 1, rate)
     # empty for 0.2s
     empty = np.zeros(int(0.2 * rate))
-    audio = np.concatenate((sine_wav, empty, chirp1, data, chirp2, np.zeros(int(0.5*rate))))
+    audio = np.concatenate((sine_wav, empty, chirp1, data, np.zeros(int(0.5*rate))))
 
     record_wave, play_wave, rate = play_and_record(audio, rate, discard=False)
 
     magic_correction = 0
 
     chirp1_loc = locate_chirp(record_wave, chirp1) + magic_correction
-    chirp2_loc = locate_chirp(record_wave, chirp2) + magic_correction
-    chirp2_loc = min(chirp2_loc, len(record_wave))
+    # chirp2_loc = locate_chirp(record_wave, chirp2) + magic_correction
+    # chirp2_loc = min(chirp2_loc, len(record_wave))
 
     start = chirp1_loc + 1
-    end = chirp2_loc - len(chirp2) + 1
-    print(start, end)
+    end = start + len(data)
+    # print(start, end)
+
+    return record_wave[start:end], rate, record_wave
+
+def play_and_record_precise_with_chirp(data, rate):
+    # get sine wave with 440Hz for 0.2s
+    sine_wav = sine_wave_samples(440, 1 * 440, 0, 1, rate)
+    # empty for 0.2s
+    empty = np.zeros(int(0.2 * rate))
+    audio = np.concatenate((sine_wav, empty, chirp1, data, np.zeros(int(0.5*rate))))
+
+    record_wave, play_wave, rate = play_and_record(audio, rate, discard=False)
+
+    magic_correction = 0
+
+    chirp1_loc = locate_chirp(record_wave, chirp1) + magic_correction
+    # chirp2_loc = locate_chirp(record_wave, chirp2) + magic_correction
+    # chirp2_loc = min(chirp2_loc, len(record_wave))
+
+    start = chirp1_loc + 1
+    end = start + len(data)
+    # print(start, end)
+
+    return record_wave[start:end], rate, record_wave
+
+def record_precise(data_len, seconds, rate):
+    audio = np.zeros(int(seconds * rate))
+
+    record_wave, play_wave, rate = play_and_record(audio, rate, discard=False)
+
+    magic_correction = 0
+
+    chirp1_loc = locate_chirp(record_wave, chirp1) + magic_correction
+    # chirp2_loc = locate_chirp(record_wave, chirp2) + magic_correction
+    # chirp2_loc = min(chirp2_loc, len(record_wave))
+
+    start = chirp1_loc + 1
+    end = start + data_len
+    # print(start, end)
 
     return record_wave[start:end], rate, record_wave

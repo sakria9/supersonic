@@ -368,3 +368,12 @@ venv
 
 raw_input.wav
 raw_output.wav
+
+# latex
+*.aux
+*.log
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.toc
+*.out

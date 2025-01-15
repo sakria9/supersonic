@@ -62,6 +62,7 @@ def diff_frames(input, output):
 
     max_cont_diff = 0
     similarities = []
+    symbol_similarities = []
     total_bits = 0
     correct_bits = 0
     one_to_zero_flips = 0
@@ -70,9 +71,35 @@ def diff_frames(input, output):
     frame_corrects = 0
     for frame1, frame2 in zip(input, output):
         total_bits += len(frame1)
-        correct_bits += np.sum(frame1 == frame2)
-        similarity = np.sum(frame1 == frame2) / len(frame1)
-        similarities.append(similarity)
+        if len(frame1) != len(frame2):
+            correct_bits += 0
+            similarity = 0
+            similarities.append(similarity)
+            symbol_similarities.append(0)
+            print(f"frame size mismatch: {len(frame1)} vs {len(frame2)}")
+        else:
+            correct_bits += np.sum(frame1 == frame2)
+            similarity = np.sum(frame1 == frame2) / len(frame1)
+            similarities.append(similarity)
+
+            symbol_len = 12
+            symbol_corr = 0
+            symbol_total = 0
+            for i in range(0, len(frame1), symbol_len):
+                is_same = np.sum(frame1[i:i+symbol_len] == frame2[i:i+symbol_len]) == symbol_len
+                if is_same:
+                    symbol_corr += 1
+                symbol_total += 1
+            symbol_similarity = symbol_corr / symbol_total
+            symbol_similarities.append(symbol_similarity)
+
+        # if frame2 size smaller than frame1, pad with 0
+        if len(frame1) > len(frame2):
+            frame2 = np.concatenate([frame2, np.zeros(len(frame1) - len(frame2), dtype=np.uint8)])
+        # if frame2 size larger than frame1, truncate
+        if len(frame1) < len(frame2):
+            frame2 = frame2[:len(frame1)]
+
         cont_diff = 0
         for x, y in zip(frame1, frame2):
             if x != y:
@@ -91,7 +118,11 @@ def diff_frames(input, output):
         else:
             frame_errors += 1
 
-    similarities = np.array(similarities)
+    similarities = np.sort(np.array(similarities))
+
+    symbol_similarities = np.sort(np.array(symbol_similarities))
+    print(symbol_similarities)
+
     print("max continuous diff:", max_cont_diff)
     print("mean:", np.mean(similarities), "median:", np.median(similarities))
     print("max:", np.max(similarities), "min:", np.min(similarities))
@@ -104,7 +135,7 @@ def diff_frames(input, output):
     print(f"1=>0 flips: {one_to_zero_flips}, 0=>1 flips: {zero_to_one_flips}")
     print(f"frames correct rate: {frame_corrects/(frame_corrects+frame_errors)*100:.2f}%")
 
-    rs_simulate(truth_bits, recv_bits)
+    # rs_simulate(truth_bits, recv_bits)
 
 input = read_frames("/home/ryo/code/supersonic/build/input.txt")
 output = read_frames("/home/ryo/code/supersonic/build/output.txt")
